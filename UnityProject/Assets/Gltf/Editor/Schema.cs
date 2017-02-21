@@ -78,6 +78,7 @@ namespace Gltf.Schema
     [Serializable]
     public class Asset : ChildOfRootProperty
     {
+        public string Generator;
         public string Version;
     }
 

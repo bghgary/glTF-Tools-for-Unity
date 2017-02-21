@@ -52,7 +52,7 @@ namespace Gltf.Serialization
                 {
                     specularGlossiness.DiffuseTexture = new Gltf.Schema.MaterialTexture
                     {
-                        Index = this.exporter.ExportTexture(info._MainTex),
+                        Index = this.exporter.ExportTexture(info._MainTex, "diffuse"),
                     };
                 }
 
@@ -66,7 +66,7 @@ namespace Gltf.Serialization
                     specularGlossiness.GlossinessFactor = info._GlossMapScale;
                     specularGlossiness.SpecularGlossinessTexture = new Gltf.Schema.MaterialTexture
                     {
-                        Index = this.exporter.ExportTexture(info._SpecGlossMap),
+                        Index = this.exporter.ExportTexture(info._SpecGlossMap, "specularGlossiness"),
                     };
                 }
 
@@ -79,31 +79,6 @@ namespace Gltf.Serialization
 
                 material.Extensions.Add(this.GetType().Name, specularGlossiness);
             }
-
-            //private void ExportCommon(Material unityMaterial, Dictionary<string, object> values)
-            //{
-            //    var unityRenderingMode = (uint)info._Mode;
-            //    var alphaRenderingMode = Schema.AlphaRenderingMode.Opaque;
-            //    switch (unityRenderingMode)
-            //    {
-            //        case 0: // Opaque
-            //            alphaRenderingMode = Schema.AlphaRenderingMode.Opaque;
-            //            break;
-            //        case 1: // Cutout
-            //            alphaRenderingMode = Schema.AlphaRenderingMode.Cutout;
-            //            break;
-            //        case 2: // Fade
-            //            throw new NotSupportedException();
-            //        case 3: // Transparent
-            //            alphaRenderingMode = Schema.AlphaRenderingMode.Transparent;
-            //            break;
-            //    }
-            //    values.Add("alphaRenderingMode", alphaRenderingMode);
-            //    if (alphaRenderingMode == Schema.AlphaRenderingMode.Cutout)
-            //    {
-            //        values.Add("alphaCutoff", info._Cutoff);
-            //    }
-            //}
         }
     }
 }

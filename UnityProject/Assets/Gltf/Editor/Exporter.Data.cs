@@ -56,34 +56,13 @@ namespace Gltf.Serialization
 
         private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Action<BinaryWriter> writeData)
         {
-            int accessorIndex;
+            // The offset of the data must be aligned to a multiple of the component size.
+            this.dataWriter.Align(componentSize);
 
-            if (this.outputBinary)
-            {
-                // The offset of the data must be aligned to a multiple of the component size.
-                this.binaryBodyWriter.Align(componentSize);
+            var bufferViewIndex = this.ExportBufferView(0, this.dataWriter.BaseStream.Position, byteLength);
+            var accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
 
-                var bufferViewIndex = this.ExportBufferView(0, this.binaryBodyWriter.BaseStream.Position, byteLength);
-                accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
-
-                writeData(this.binaryBodyWriter);
-            }
-            else
-            {
-                var bufferUri = string.Format("{0}_buffer{1}.bin", this.outputName, this.buffers.Count);
-                var bufferIndex = this.ExportBuffer(bufferUri, byteLength);
-                var bufferViewIndex = this.ExportBufferView(bufferIndex, 0, byteLength);
-                accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
-
-                using (var fileStream = new FileStream(Path.Combine(this.outputDirectory, bufferUri), FileMode.Create))
-                using (var binaryWriter = new BinaryWriter(fileStream))
-                {
-                    writeData(binaryWriter);
-
-                    binaryWriter.Flush();
-                    fileStream.Flush();
-                }
-            }
+            writeData(this.dataWriter);
 
             return accessorIndex;
         }

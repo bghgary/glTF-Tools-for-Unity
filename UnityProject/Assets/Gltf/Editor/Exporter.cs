@@ -74,27 +74,39 @@ namespace Gltf.Serialization
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.TextArea(string.Empty, GUI.skin.horizontalSlider);
+            EditorGUILayout.LabelField(string.Empty, GUI.skin.horizontalSlider);
 
-            if (GUILayout.Button("Export", GUILayout.ExpandWidth(false)))
+            using (new GUILayout.HorizontalScope())
             {
-                var extensions = Extensions.None;
-                if (this.extension_KHR_materials_pbrSpecularGlossiness)
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Export"))
                 {
-                    extensions |= Extensions.KHR_materials_pbrSpecularGlossiness;
-                }
+                    var extensions = Extensions.None;
+                    if (this.extension_KHR_materials_pbrSpecularGlossiness)
+                    {
+                        extensions |= Extensions.KHR_materials_pbrSpecularGlossiness;
+                    }
 
-                Selection.gameObjects.ForEach(gameObject =>
-                {
-                    new[] { gameObject }.Export(this.outputDirectory, gameObject.name, this.outputBinary, this.jsonFormatting, extensions);
-                    Debug.LogFormat(gameObject, "[{0}] Exported {1}", DateTime.Now, gameObject.name);
-                });
+                    Selection.gameObjects.ForEach(gameObject =>
+                    {
+                        gameObject.Export(this.outputDirectory, gameObject.name, this.outputBinary, this.jsonFormatting, extensions);
+                        Debug.LogFormat(gameObject, "[{0}] Exported {1}", DateTime.Now, gameObject.name);
+                    });
+
+                    Debug.LogFormat("[{0}] Exported {1} game object(s)", DateTime.Now, Selection.gameObjects.Count());
+                }
             }
         }
     }
 
     public static class GameObjectExtensions
     {
+        public static void Export(this GameObject inputObject, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, Extensions extensions)
+        {
+            var exporter = new Exporter();
+            exporter.Export(new[] { inputObject }, outputDirectory, outputName, outputBinary, jsonFormatting, extensions);
+        }
+
         public static void Export(this IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, Extensions extensions)
         {
             var exporter = new Exporter();
@@ -112,7 +124,7 @@ namespace Gltf.Serialization
         private string outputDirectory;
         private string outputName;
         private bool outputBinary;
-        private BinaryWriter binaryBodyWriter;
+        private BinaryWriter dataWriter;
         private Dictionary<UnityEngine.Object, int> objectToIndexCache;
         private List<Extension> extensions;
 
@@ -132,6 +144,7 @@ namespace Gltf.Serialization
             this.outputDirectory = outputDirectory;
             this.outputName = outputName;
             this.outputBinary = outputBinary;
+            this.dataWriter = new BinaryWriter(new MemoryStream());
 
             this.accessors = new List<Schema.Accessor>();
             this.buffers = new List<Schema.Buffer>();
@@ -143,11 +156,6 @@ namespace Gltf.Serialization
             this.nodes = new List<Schema.Node>();
             this.samplers = new List<Schema.Sampler>();
             this.textures = new List<Schema.Texture>();
-
-            if (this.outputBinary)
-            {
-                this.binaryBodyWriter = new BinaryWriter(new MemoryStream());
-            }
 
             Directory.CreateDirectory(this.outputDirectory);
 
@@ -170,7 +178,7 @@ namespace Gltf.Serialization
             var gltf = new Schema.Gltf
             {
                 Accessors = this.accessors,
-                Asset = new Schema.Asset { Version = "2.0" },
+                Asset = new Schema.Asset { Generator = "glTF Tools for Unity", Version = "2.0" },
                 BufferViews = this.bufferViews,
                 Buffers = this.buffers,
                 ExtensionsUsed = this.extensionsUsed,
@@ -196,25 +204,25 @@ namespace Gltf.Serialization
                 }
             };
 
+            this.dataWriter.Flush();
+            var dataBytes = ((MemoryStream)this.dataWriter.BaseStream).ToArray();
+
             if (outputBinary)
             {
-                this.binaryBodyWriter.Flush();
-                var binaryBodyBytes = ((MemoryStream)this.binaryBodyWriter.BaseStream).ToArray();
-
                 Debug.Assert(this.buffers.Count == 0);
-                this.ExportBuffer(null, binaryBodyBytes.Length);
+                this.ExportBuffer(null, dataBytes.Length);
 
-                byte[] binaryContentBytes;
-                using (var binaryContentWriter = new StreamWriter(new MemoryStream()))
+                byte[] contentBytes;
+                using (var contentWriter = new StreamWriter(new MemoryStream()))
                 {
-                    jsonSerializer.Serialize(binaryContentWriter, gltf);
-                    binaryContentWriter.Flush();
+                    jsonSerializer.Serialize(contentWriter, gltf);
+                    contentWriter.Flush();
 
                     // Start of binary data must be 4-byte aligned, so must pad scene json with spaces.
-                    binaryContentWriter.Write(new string(' ', (int)(4 - (binaryContentWriter.BaseStream.Position % 4))));
-                    binaryContentWriter.Flush();
+                    contentWriter.Write(new string(' ', (int)(4 - (contentWriter.BaseStream.Position % 4))));
+                    contentWriter.Flush();
 
-                    binaryContentBytes = ((MemoryStream)binaryContentWriter.BaseStream).ToArray();
+                    contentBytes = ((MemoryStream)contentWriter.BaseStream).ToArray();
                 }
 
                 using (var fileStream = new FileStream(Path.Combine(this.outputDirectory, this.outputName + ".glb"), FileMode.Create))
@@ -223,8 +231,8 @@ namespace Gltf.Serialization
                     // 20-byte header
                     byte[] magic = Encoding.ASCII.GetBytes("glTF");
                     uint version = 1;
-                    uint length = checked((uint)(20 + binaryContentBytes.Length + binaryBodyBytes.Length));
-                    uint contentLength = checked((uint)binaryContentBytes.Length);
+                    uint length = checked((uint)(20 + contentBytes.Length + dataBytes.Length));
+                    uint contentLength = checked((uint)contentBytes.Length);
                     uint contentFormat = (uint)BinaryContentFormat.JSON;
 
                     binaryWriter.Write(magic);
@@ -232,8 +240,8 @@ namespace Gltf.Serialization
                     binaryWriter.Write(length);
                     binaryWriter.Write(contentLength);
                     binaryWriter.Write(contentFormat);
-                    binaryWriter.Write(binaryContentBytes);
-                    binaryWriter.Write(binaryBodyBytes);
+                    binaryWriter.Write(contentBytes);
+                    binaryWriter.Write(dataBytes);
 
                     binaryWriter.Flush();
                     fileStream.Flush();
@@ -241,6 +249,10 @@ namespace Gltf.Serialization
             }
             else
             {
+                var bufferUri = this.outputName + ".bin";
+                this.ExportBuffer(bufferUri, dataBytes.Length);
+                File.WriteAllBytes(Path.Combine(this.outputDirectory, bufferUri), dataBytes);
+
                 using (var streamWriter = new StreamWriter(Path.Combine(this.outputDirectory, this.outputName + ".gltf")))
                 {
                     jsonSerializer.Serialize(streamWriter, gltf);
@@ -354,7 +366,7 @@ namespace Gltf.Serialization
                 {
                     material.PbrMetallicRoughness.BaseColorTexture = new Schema.MaterialTexture
                     {
-                        Index = this.ExportTexture(info._MainTex),
+                        Index = this.ExportTexture(info._MainTex, "baseColor"),
                     };
                 }
 
@@ -383,7 +395,7 @@ namespace Gltf.Serialization
 
                     material.PbrMetallicRoughness.MetallicRoughnessTexture = new Schema.MaterialTexture
                     {
-                        Index = this.ExportTexture(metallicRoughnessTexture),
+                        Index = this.ExportTexture(metallicRoughnessTexture, "metallicRoughness"),
                     };
                 }
 
@@ -408,7 +420,7 @@ namespace Gltf.Serialization
             {
                 material.NormalTexture = new Schema.MaterialNormalTexture
                 {
-                    Index = this.ExportTexture(info._BumpMap, true),
+                    Index = this.ExportTexture(info._BumpMap, "normal", true),
                     Scale = info._BumpScale,
                 };
             }
@@ -417,7 +429,7 @@ namespace Gltf.Serialization
             {
                 material.OcclusionTexture = new Schema.MaterialOcclusionTexture
                 {
-                    Index = this.ExportTexture(info._OcclusionMap),
+                    Index = this.ExportTexture(info._OcclusionMap, "occlusion"),
                     Strength = info._OcclusionStrength,
                 };
             }
@@ -428,12 +440,12 @@ namespace Gltf.Serialization
             {
                 material.EmissiveTexture = new Schema.MaterialTexture
                 {
-                    Index = this.ExportTexture(info._EmissionMap),
+                    Index = this.ExportTexture(info._EmissionMap, "emissive"),
                 };
             }
         }
 
-        private int ExportTexture(Texture2D unityTexture, bool normalMap = false)
+        private int ExportTexture(Texture2D unityTexture, string imageName, bool normalMap = false)
         {
             int index = -1;
             if (this.objectToIndexCache.TryGetValue(unityTexture, out index))
@@ -454,7 +466,7 @@ namespace Gltf.Serialization
 
                 if (this.outputBinary)
                 {
-                    var bufferViewIndex = this.ExportBufferView(0, this.binaryBodyWriter.BaseStream.Position, textureBytes.Length);
+                    var bufferViewIndex = this.ExportBufferView(0, this.dataWriter.BaseStream.Position, textureBytes.Length);
 
                     imageIndex = this.images.Count;
                     this.images.Add(new Schema.Image
@@ -463,12 +475,12 @@ namespace Gltf.Serialization
                         MimeType = "image/png",
                     });
 
-                    this.binaryBodyWriter.Write(textureBytes);
+                    this.dataWriter.Write(textureBytes);
                 }
                 else
                 {
                     imageIndex = this.images.Count;
-                    var imageUri = string.Format("{0}_image{1}.png", this.outputName, imageIndex);
+                    var imageUri = string.Format("{0}_{1}.png", this.outputName, imageName);
                     this.images.Add(new Schema.Image
                     {
                         Uri = imageUri,
@@ -477,15 +489,17 @@ namespace Gltf.Serialization
                     File.WriteAllBytes(Path.Combine(this.outputDirectory, imageUri), textureBytes);
                 }
 
-                var samplerIndex = this.samplers.Count;
-                this.samplers.Add(new Schema.Sampler
+                if (!this.samplers.Any())
                 {
-                });
+                    this.samplers.Add(new Schema.Sampler
+                    {
+                    });
+                }
 
                 index = this.textures.Count;
                 this.textures.Add(new Schema.Texture
                 {
-                    Sampler = samplerIndex,
+                    Sampler = 0,
                     Source = imageIndex,
                 });
             }
@@ -532,11 +546,6 @@ namespace Gltf.Serialization
                 if (unityMesh.normals.Any())
                 {
                     attributes.Add("NORMAL", this.ExportData(LeftHandToRightHand(unityMesh.normals)));
-                }
-
-                if (unityMesh.tangents.Any())
-                {
-                    attributes.Add("TANGENT", this.ExportData(LeftHandToRightHand(unityMesh.tangents)));
                 }
 
                 attributes.Add("POSITION", this.ExportData(LeftHandToRightHand(unityMesh.vertices)));
