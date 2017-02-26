@@ -3,30 +3,6 @@ using UnityEngine;
 
 public static class BinaryWriterExtensions
 {
-    public static void Align(this BinaryWriter writer, int size, byte fillByte)
-    {
-        var remainder = checked((int)writer.BaseStream.Position) % size;
-        if (remainder != 0)
-        {
-            for (var i = remainder; i < size; i++)
-            {
-                writer.Write(fillByte);
-            }
-        }
-    }
-
-    public static void Align(this BinaryWriter writer, int size, char fillChar)
-    {
-        var remainder = checked((int)writer.BaseStream.Position) % size;
-        if (remainder != 0)
-        {
-            for (var i = remainder; i < size; i++)
-            {
-                writer.Write(fillChar);
-            }
-        }
-    }
-
     public static void Write(this BinaryWriter binaryWriter, Vector2 value)
     {
         binaryWriter.Write(value.x);

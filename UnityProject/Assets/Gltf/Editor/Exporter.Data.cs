@@ -57,9 +57,14 @@ namespace Gltf.Serialization
         private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Schema.BufferViewTarget target, Action<BinaryWriter> writeData)
         {
             // The offset of the data must be aligned to a multiple of the component size.
-            this.dataWriter.Align(componentSize, byte.MinValue);
+            var position = checked((int)this.dataWriter.BaseStream.Position);
+            var alignedPosition = Align(position, componentSize);
+            for (var i = position; i < alignedPosition; i++)
+            {
+                this.dataWriter.Write(byte.MinValue);
+            }
 
-            var bufferViewIndex = this.ExportBufferView(0, checked((int)this.dataWriter.BaseStream.Position), byteLength, target);
+            var bufferViewIndex = this.ExportBufferView(0, alignedPosition, byteLength, target);
             var accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
 
             writeData(this.dataWriter);

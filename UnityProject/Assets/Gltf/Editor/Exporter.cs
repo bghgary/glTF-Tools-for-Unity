@@ -138,7 +138,7 @@ namespace Gltf.Serialization
             if (outputBinary)
             {
                 Debug.Assert(this.buffers.Count == 0);
-                var alignedDataByteLength = GetAlignedLength(dataBytes.Length, 4);
+                var alignedDataByteLength = Align(dataBytes.Length, 4);
                 this.ExportBuffer(null, alignedDataByteLength);
 
                 byte[] jsonBytes;
@@ -149,7 +149,7 @@ namespace Gltf.Serialization
                     jsonBytes = ((MemoryStream)jsonWriter.BaseStream).ToArray();
                 }
 
-                var alignedJsonByteLength = GetAlignedLength(jsonBytes.Length, 4);
+                var alignedJsonByteLength = Align(jsonBytes.Length, 4);
 
                 using (var fileStream = new FileStream(Path.Combine(this.outputDirectory, this.outputName + ".glb"), FileMode.Create))
                 using (var binaryWriter = new BinaryWriter(fileStream))
@@ -157,19 +157,25 @@ namespace Gltf.Serialization
                     // 12-byte header (magic, version, length)
                     binaryWriter.Write(Binary.Magic);
                     binaryWriter.Write(Binary.Version);
-                    binaryWriter.Write(checked(12 + 4 + 4 + alignedJsonByteLength + 4 + 4 + alignedDataByteLength));
+                    binaryWriter.Write(checked(12 + 8 + alignedJsonByteLength + 8 + alignedDataByteLength));
 
                     // Chunk 0 - JSON
                     binaryWriter.Write(alignedJsonByteLength);
                     binaryWriter.Write(Binary.ChunkFormat.JSON);
                     binaryWriter.Write(jsonBytes);
-                    binaryWriter.Align(4, ' ');
+                    for (var i = jsonBytes.Length; i < alignedJsonByteLength; i++)
+                    {
+                        binaryWriter.Write(' ');
+                    }
 
                     // Chunk 1 - Binary Buffer
                     binaryWriter.Write(alignedDataByteLength);
                     binaryWriter.Write(Binary.ChunkFormat.BIN);
                     binaryWriter.Write(dataBytes);
-                    binaryWriter.Align(4, byte.MinValue);
+                    for (var i = dataBytes.Length; i < alignedDataByteLength; i++)
+                    {
+                        binaryWriter.Write(byte.MinValue);
+                    }
 
                     binaryWriter.Flush();
                     fileStream.Flush();
@@ -195,10 +201,10 @@ namespace Gltf.Serialization
             this.pbrMaterialManager.Dispose();
         }
 
-        private static int GetAlignedLength(int length, int size)
+        private static int Align(int value, int size)
         {
-            var remainder = length % size;
-            return checked(length + (size - remainder));
+            var remainder = value % size;
+            return (remainder == 0 ? value : checked(value + size - remainder));
         }
 
         private void GetRightHandedTRS(Transform transform, out Vector3 position, out Quaternion rotation, out Vector3 scale)
