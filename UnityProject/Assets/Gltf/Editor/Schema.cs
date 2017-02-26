@@ -44,6 +44,13 @@ namespace Gltf.Schema
     }
 
     [Serializable]
+    public enum AlphaMode
+    {
+        MASK,
+        BLEND,
+    }
+
+    [Serializable]
     public class ChildOfRootProperty
     {
         public string Name;
@@ -59,13 +66,13 @@ namespace Gltf.Schema
     public class Accessor : ChildOfRootProperty
     {
         public int BufferView;
-        public long ByteOffset;
+        public int ByteOffset;
         public int ByteStride;
         public AccessorComponentType ComponentType;
         public bool Normalized;
         public int Count;
 
-        [JsonConverterAttribute(typeof(StringEnumConverter))]
+        [JsonConverter(typeof(StringEnumConverter))]
         public AccessorType Type;
 
         public IEnumerable<object> Max;
@@ -86,7 +93,7 @@ namespace Gltf.Schema
     public class Buffer : ChildOfRootProperty
     {
         public string Uri;
-        public long ByteLength;
+        public int ByteLength;
 
         public bool ShouldSerializeUri() { return this.Uri != null; }
     }
@@ -95,8 +102,8 @@ namespace Gltf.Schema
     public class BufferView : ChildOfRootProperty
     {
         public int Buffer;
-        public long ByteOffset;
-        public long ByteLength;
+        public int ByteOffset;
+        public int ByteLength;
         public BufferViewTarget Target;
     }
 
@@ -162,11 +169,18 @@ namespace Gltf.Schema
         public IEnumerable<float> EmissiveFactor;
         public MaterialTexture EmissiveTexture;
 
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AlphaMode? AlphaMode;
+
+        public float AlphaCutoff;
+
         public bool ShouldSerializePbrMetallicRoughness() { return this.PbrMetallicRoughness != null; }
         public bool ShouldSerializeNormalTexture() { return this.NormalTexture != null; }
         public bool ShouldSerializeOcclusionTexture() { return this.OcclusionTexture != null; }
         public bool ShouldSerializeEmissiveFactor() { return this.EmissiveFactor != null && !this.EmissiveFactor.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f }); }
         public bool ShouldSerializeEmissiveTexture() { return this.EmissiveTexture != null; }
+        public bool ShouldSerializeAlphaMode() { return this.AlphaMode.HasValue; }
+        public bool ShouldSerializeAlphaCutoff() { return this.AlphaCutoff != 0.5f; }
     }
 
     [Serializable]
@@ -231,8 +245,20 @@ namespace Gltf.Schema
         public IEnumerable<Material> Materials;
         public IEnumerable<Node> Nodes;
         public IEnumerable<Sampler> Samplers;
-        public int Scene;
+        public int? Scene;
         public IEnumerable<Scene> Scenes;
         public IEnumerable<Texture> Textures;
+
+        public bool ShouldSerializeAccessors() { return this.Accessors != null && this.Accessors.Any(); }
+        public bool ShouldSerializeBufferViews() { return this.BufferViews != null && this.BufferViews.Any(); }
+        public bool ShouldSerializeExtensionsUsed() { return this.ExtensionsUsed != null && this.ExtensionsUsed.Any(); }
+        public bool ShouldSerializeImages() { return this.Images != null && this.Images.Any(); }
+        public bool ShouldSerializeMeshes() { return this.Meshes != null && this.Meshes.Any(); }
+        public bool ShouldSerializeMaterials() { return this.Materials != null && this.Materials.Any(); }
+        public bool ShouldSerializeNodes() { return this.Nodes != null && this.Nodes.Any(); }
+        public bool ShouldSerializeSamplers() { return this.Samplers != null && this.Samplers.Any(); }
+        public bool ShouldSerializeScene() { return this.Scene.HasValue; }
+        public bool ShouldSerializeScenes() { return this.Scenes != null && this.Scenes.Any(); }
+        public bool ShouldSerializeTextures() { return this.Textures != null && this.Textures.Any(); }
     }
 }

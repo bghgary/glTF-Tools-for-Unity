@@ -36,7 +36,7 @@ namespace Gltf.Serialization
 
             public override void PostExportMaterial(int index, Material unityMaterial)
             {
-                var info = unityMaterial.ToSpecular().GetInfo<SpecularMaterialInfo>();
+                var info = this.exporter.pbrMaterialManager.ConvertToSpecular(unityMaterial).GetInfo<SpecularMaterialInfo>();
 
                 if (info._SmoothnessTextureChannel != 0)
                 {
@@ -52,7 +52,7 @@ namespace Gltf.Serialization
                 {
                     specularGlossiness.DiffuseTexture = new Gltf.Schema.MaterialTexture
                     {
-                        Index = this.exporter.ExportTexture(info._MainTex, "diffuse"),
+                        Index = this.exporter.ExportTexture(info._MainTex, FormatMaterialTextureName("diffuse", index)),
                     };
                 }
 
@@ -66,7 +66,7 @@ namespace Gltf.Serialization
                     specularGlossiness.GlossinessFactor = info._GlossMapScale;
                     specularGlossiness.SpecularGlossinessTexture = new Gltf.Schema.MaterialTexture
                     {
-                        Index = this.exporter.ExportTexture(info._SpecGlossMap, "specularGlossiness"),
+                        Index = this.exporter.ExportTexture(info._SpecGlossMap, FormatMaterialTextureName("specularGlossiness", index)),
                     };
                 }
 
