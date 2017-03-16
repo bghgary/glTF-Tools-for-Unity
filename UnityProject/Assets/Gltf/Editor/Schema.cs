@@ -67,7 +67,6 @@ namespace Gltf.Schema
     {
         public int BufferView;
         public int ByteOffset;
-        public int ByteStride;
         public AccessorComponentType ComponentType;
         public bool Normalized;
         public int Count;
@@ -78,15 +77,18 @@ namespace Gltf.Schema
         public IEnumerable<object> Max;
         public IEnumerable<object> Min;
 
-        public bool ShouldSerializeByteStride() { return this.ByteStride != 0; }
         public bool ShouldSerializeNormalized() { return this.Normalized; }
     }
 
     [Serializable]
     public class Asset : ChildOfRootProperty
     {
+        public string Copyright;
         public string Generator;
         public string Version;
+
+        public bool ShouldSerializeCopyright() { return this.Copyright != null; }
+        public bool ShouldSerializeGenerator() { return this.Generator != null; }
     }
 
     [Serializable]
@@ -104,7 +106,11 @@ namespace Gltf.Schema
         public int Buffer;
         public int ByteOffset;
         public int ByteLength;
-        public BufferViewTarget Target;
+        public int ByteStride;
+        public BufferViewTarget? Target;
+
+        public bool ShouldSerializeByteStride() { return this.ByteStride != 0; }
+        public bool ShouldSerializeTarget() { return this.Target.HasValue; }
     }
 
     [Serializable]

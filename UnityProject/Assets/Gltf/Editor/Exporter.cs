@@ -442,7 +442,7 @@ namespace Gltf.Serialization
 
                 if (this.outputBinary)
                 {
-                    var bufferViewIndex = this.ExportBufferView(0, checked((int)this.dataWriter.BaseStream.Position), textureBytes.Length, Schema.BufferViewTarget.ARRAY_BUFFER);
+                    var bufferViewIndex = this.ExportBufferView(0, checked((int)this.dataWriter.BaseStream.Position), textureBytes.Length);
 
                     imageIndex = this.images.Count;
                     this.images.Add(new Schema.Image
@@ -501,30 +501,35 @@ namespace Gltf.Serialization
 
                 if (unityMesh.uv.Any())
                 {
-                    attributes.Add("TEXCOORD_0", this.ExportData(FlipY(unityMesh.uv)));
+                    attributes.Add("TEXCOORD_0", this.ExportData(InvertY(unityMesh.uv)));
                 }
 
                 if (unityMesh.uv2.Any())
                 {
-                    attributes.Add("TEXCOORD_1", this.ExportData(FlipY(unityMesh.uv2)));
+                    attributes.Add("TEXCOORD_1", this.ExportData(InvertY(unityMesh.uv2)));
                 }
 
                 if (unityMesh.uv3.Any())
                 {
-                    attributes.Add("TEXCOORD_2", this.ExportData(FlipY(unityMesh.uv3)));
+                    attributes.Add("TEXCOORD_2", this.ExportData(InvertY(unityMesh.uv3)));
                 }
 
                 if (unityMesh.uv4.Any())
                 {
-                    attributes.Add("TEXCOORD_3", this.ExportData(FlipY(unityMesh.uv4)));
+                    attributes.Add("TEXCOORD_3", this.ExportData(InvertY(unityMesh.uv4)));
                 }
 
                 if (unityMesh.normals.Any())
                 {
-                    attributes.Add("NORMAL", this.ExportData(LeftHandToRightHand(unityMesh.normals)));
+                    attributes.Add("NORMAL", this.ExportData(InvertZ(unityMesh.normals)));
                 }
 
-                attributes.Add("POSITION", this.ExportData(LeftHandToRightHand(unityMesh.vertices)));
+                if (unityMesh.tangents.Any())
+                {
+                    attributes.Add("TANGENT", this.ExportData(InvertW(unityMesh.tangents)));
+                }
+
+                attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices)));
 
                 index = this.meshes.Count;
                 this.meshes.Add(new Schema.Mesh
@@ -571,19 +576,19 @@ namespace Gltf.Serialization
             }
         }
 
-        private static IEnumerable<Vector2> FlipY(IEnumerable<Vector2> values)
+        private static IEnumerable<Vector2> InvertY(IEnumerable<Vector2> values)
         {
             return values.Select(value => new Vector2(value.x, -value.y));
         }
 
-        private static IEnumerable<Vector3> LeftHandToRightHand(IEnumerable<Vector3> values)
+        private static IEnumerable<Vector3> InvertZ(IEnumerable<Vector3> values)
         {
             return values.Select(value => new Vector3(value.x, value.y, -value.z));
         }
 
-        private static IEnumerable<Vector4> LeftHandToRightHand(IEnumerable<Vector4> values)
+        private static IEnumerable<Vector4> InvertW(IEnumerable<Vector4> values)
         {
-            return values.Select(value => new Vector4(value.x, value.y, -value.z, value.w));
+            return values.Select(value => new Vector4(value.x, value.y, value.z, -value.w));
         }
 
         private static IEnumerable<int> FlipFaces(int[] triangles)

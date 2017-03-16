@@ -21,7 +21,7 @@ namespace Gltf.Serialization
             return index;
         }
 
-        private int ExportBufferView(int bufferIndex, int byteOffset, int byteLength, Schema.BufferViewTarget target)
+        private int ExportBufferView(int bufferIndex, int byteOffset, int byteLength)
         {
             int index = this.bufferViews.Count;
 
@@ -30,7 +30,6 @@ namespace Gltf.Serialization
                 Buffer = bufferIndex,
                 ByteOffset = byteOffset,
                 ByteLength = byteLength,
-                Target = target,
             });
 
             return index;
@@ -54,7 +53,7 @@ namespace Gltf.Serialization
             return index;
         }
 
-        private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Schema.BufferViewTarget target, Action<BinaryWriter> writeData)
+        private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Action<BinaryWriter> writeData)
         {
             // The offset of the data must be aligned to a multiple of the component size.
             var position = checked((int)this.dataWriter.BaseStream.Position);
@@ -64,7 +63,7 @@ namespace Gltf.Serialization
                 this.dataWriter.Write(byte.MinValue);
             }
 
-            var bufferViewIndex = this.ExportBufferView(0, alignedPosition, byteLength, target);
+            var bufferViewIndex = this.ExportBufferView(0, alignedPosition, byteLength);
             var accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
 
             writeData(this.dataWriter);
@@ -82,7 +81,6 @@ namespace Gltf.Serialization
                 new object[] { values.Min() },
                 new object[] { values.Max() },
                 sizeof(ushort) * values.Count(),
-                Schema.BufferViewTarget.ELEMENT_ARRAY_BUFFER,
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
@@ -96,7 +94,6 @@ namespace Gltf.Serialization
                 new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min() },
                 new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max() },
                 sizeof(float) * 2 * values.Count(),
-                Schema.BufferViewTarget.ARRAY_BUFFER,
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
@@ -110,7 +107,6 @@ namespace Gltf.Serialization
                 new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min() },
                 new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max() },
                 sizeof(float) * 3 * values.Count(),
-                Schema.BufferViewTarget.ARRAY_BUFFER,
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
@@ -124,7 +120,6 @@ namespace Gltf.Serialization
                 new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min(), values.Select(value => value.w).Min() },
                 new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max(), values.Select(value => value.w).Max() },
                 sizeof(float) * 4 * values.Count(),
-                Schema.BufferViewTarget.ARRAY_BUFFER,
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
@@ -138,7 +133,6 @@ namespace Gltf.Serialization
                 new object[] { values.Select(value => value.r).Min(), values.Select(value => value.g).Min(), values.Select(value => value.b).Min(), values.Select(value => value.a).Min() },
                 new object[] { values.Select(value => value.r).Max(), values.Select(value => value.g).Max(), values.Select(value => value.b).Max(), values.Select(value => value.a).Max() },
                 sizeof(float) * 4 * values.Count(),
-                Schema.BufferViewTarget.ARRAY_BUFFER,
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
     }
