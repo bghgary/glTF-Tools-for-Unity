@@ -15,18 +15,24 @@ namespace Gltf.Serialization
         KHR_materials_pbrSpecularGlossiness = 0x00000001,
     }
 
+    public enum ImageFormat
+    {
+        JPG,
+        PNG,
+    }
+
     public static class GameObjectExtensions
     {
-        public static void Export(this GameObject inputObject, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, Extensions extensions)
+        public static void Export(this GameObject inputObject, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
         {
-            new[] { inputObject }.Export(outputDirectory, outputName, outputBinary, jsonFormatting, extensions);
+            new[] { inputObject }.Export(outputDirectory, outputName, outputBinary, jsonFormatting, imageFormat, extensions);
         }
 
-        public static void Export(this IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, Extensions extensions)
+        public static void Export(this IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
         {
             using (var exporter = new Exporter())
             {
-                exporter.Export(inputObjects, outputDirectory, outputName, outputBinary, jsonFormatting, extensions);
+                exporter.Export(inputObjects, outputDirectory, outputName, outputBinary, jsonFormatting, imageFormat, extensions);
             }
         }
     }
@@ -48,6 +54,7 @@ namespace Gltf.Serialization
         private string outputDirectory;
         private string outputName;
         private bool outputBinary;
+        private ImageFormat imageFormat;
 
         private readonly PbrMaterialManager pbrMaterialManager = new PbrMaterialManager();
         private readonly Dictionary<MetallicMaterialInfo, Texture2D> metallicInfoToTextureCache = new Dictionary<MetallicMaterialInfo, Texture2D>();
@@ -67,11 +74,12 @@ namespace Gltf.Serialization
         private readonly List<Schema.Sampler> samplers = new List<Schema.Sampler>();
         private readonly List<Schema.Texture> textures = new List<Schema.Texture>();
 
-        public void Export(IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, Extensions extensions)
+        public void Export(IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
         {
             this.outputDirectory = outputDirectory;
             this.outputName = outputName;
             this.outputBinary = outputBinary;
+            this.imageFormat = imageFormat;
 
             this.dataWriter = new BinaryWriter(new MemoryStream());
             this.objectToIndexCache.Clear();
@@ -345,7 +353,7 @@ namespace Gltf.Serialization
                             pixels[i].a = 1.0f;
                         }
 
-                        metallicRoughnessTexture = new Texture2D(info._MetallicGlossMap.width, info._MetallicGlossMap.height, TextureFormat.ARGB32, false);
+                        metallicRoughnessTexture = new Texture2D(info._MetallicGlossMap.width, info._MetallicGlossMap.height, TextureFormat.RGB24, false);
                         metallicRoughnessTexture.SetPixels(pixels);
                         metallicRoughnessTexture.Apply();
 
@@ -421,6 +429,18 @@ namespace Gltf.Serialization
             material.AlphaCutoff = (material.AlphaMode == Schema.AlphaMode.BLEND ? info._Cutoff : 0.5f);
         }
 
+        private static bool TextureFormatHasAlpha(TextureFormat textureFormat)
+        {
+            switch (textureFormat)
+            {
+                case TextureFormat.RGBA32:
+                case TextureFormat.ARGB32:
+                    return true;
+            }
+
+            return false;
+        }
+
         private int ExportTexture(Texture2D unityTexture, string imageName, bool normalMap = false)
         {
             int index = -1;
@@ -436,7 +456,9 @@ namespace Gltf.Serialization
                     unityTexture = UnpackNormals(unityTexture);
                 }
 
-                var textureBytes = unityTexture.EncodeToPNG();
+                var imageFormat = (TextureFormatHasAlpha(unityTexture.format) ? ImageFormat.PNG : this.imageFormat);
+                var textureBytes = (imageFormat == ImageFormat.PNG ? unityTexture.EncodeToPNG() : unityTexture.EncodeToJPG(90));
+                var imageFormatString = imageFormat.ToString().ToLower();
 
                 int imageIndex;
 
@@ -448,7 +470,7 @@ namespace Gltf.Serialization
                     this.images.Add(new Schema.Image
                     {
                         BufferView = bufferViewIndex,
-                        MimeType = "image/png",
+                        MimeType = "image/" + imageFormatString,
                     });
 
                     this.dataWriter.Write(textureBytes);
@@ -456,7 +478,7 @@ namespace Gltf.Serialization
                 else
                 {
                     imageIndex = this.images.Count;
-                    var imageUri = string.Format("{0}_{1}.png", this.outputName, imageName);
+                    var imageUri = string.Format("{0}_{1}.{2}", this.outputName, imageName, imageFormatString);
                     this.images.Add(new Schema.Image
                     {
                         Uri = imageUri,
@@ -619,7 +641,7 @@ namespace Gltf.Serialization
                 normals[i].a = 1;
             }
 
-            texture = new Texture2D(texture.width, texture.height, TextureFormat.ARGB32, false);
+            texture = new Texture2D(texture.width, texture.height, TextureFormat.RGB24, false);
             texture.SetPixels(normals);
             texture.Apply();
 

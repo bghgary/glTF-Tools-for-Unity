@@ -13,6 +13,7 @@ namespace Gltf.Serialization
             public const string OutputDirectory = "Gltf.Serialization.ExportWindow.OutputDirectory";
             public const string OutputBinary = "Gltf.Serialization.ExportWindow.OutputBinary";
             public const string JsonFormatting = "Gltf.Serialization.ExportWindow.JsonFormatting";
+            public const string ImageFormat = "Gltf.Serialization.ExportWindow.ImageFormat";
             public const string ShowExtensions = "Gltf.Serialization.ExportWindow.ShowExtension";
             public const string Extension_KHR_materials_pbrSpecularGlossiness = "Gltf.Serialization.ExportWindow.Extension.KHR_materials_pbrSpecularGlossiness";
         }
@@ -20,6 +21,7 @@ namespace Gltf.Serialization
         private string outputDirectory;
         private bool outputBinary;
         private Formatting jsonFormatting;
+        private ImageFormat imageFormat;
         private bool showExtensions;
         private bool extension_KHR_materials_pbrSpecularGlossiness;
 
@@ -34,6 +36,7 @@ namespace Gltf.Serialization
             this.outputDirectory = EditorPrefs.GetString(PrefKeys.OutputDirectory, "Output");
             this.outputBinary = EditorPrefs.GetBool(PrefKeys.OutputBinary, false);
             this.jsonFormatting = (Formatting)EditorPrefs.GetInt(PrefKeys.JsonFormatting, (int)Formatting.Indented);
+            this.imageFormat = (ImageFormat)EditorPrefs.GetInt(PrefKeys.ImageFormat, (int)ImageFormat.PNG);
             this.showExtensions = EditorPrefs.GetBool(PrefKeys.ShowExtensions, true);
             this.extension_KHR_materials_pbrSpecularGlossiness = EditorPrefs.GetBool(PrefKeys.Extension_KHR_materials_pbrSpecularGlossiness, false);
         }
@@ -43,6 +46,7 @@ namespace Gltf.Serialization
             EditorPrefs.SetString(PrefKeys.OutputDirectory, this.outputDirectory);
             EditorPrefs.SetBool(PrefKeys.OutputBinary, this.outputBinary);
             EditorPrefs.SetInt(PrefKeys.JsonFormatting, (int)this.jsonFormatting);
+            EditorPrefs.SetInt(PrefKeys.ImageFormat, (int)this.imageFormat);
             EditorPrefs.SetBool(PrefKeys.ShowExtensions, this.showExtensions);
             EditorPrefs.SetBool(PrefKeys.Extension_KHR_materials_pbrSpecularGlossiness, this.extension_KHR_materials_pbrSpecularGlossiness);
         }
@@ -52,6 +56,7 @@ namespace Gltf.Serialization
             this.outputDirectory = EditorGUILayout.TextField("Output Directory", this.outputDirectory);
             this.outputBinary = EditorGUILayout.Toggle("Output Binary", this.outputBinary);
             this.jsonFormatting = (Formatting)EditorGUILayout.EnumPopup("JSON Formatting", this.jsonFormatting);
+            this.imageFormat = (ImageFormat)EditorGUILayout.EnumPopup("Image Format", this.imageFormat);
 
             EditorGUILayout.Separator();
 
@@ -78,7 +83,7 @@ namespace Gltf.Serialization
 
                     Selection.gameObjects.ForEach(gameObject =>
                     {
-                        gameObject.Export(this.outputDirectory, gameObject.name, this.outputBinary, this.jsonFormatting, extensions);
+                        gameObject.Export(this.outputDirectory, gameObject.name, this.outputBinary, this.jsonFormatting, this.imageFormat, extensions);
                         Debug.LogFormat(gameObject, "[{0}] Exported {1}", DateTime.Now, gameObject.name);
                     });
 

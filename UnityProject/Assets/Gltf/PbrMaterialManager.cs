@@ -98,6 +98,7 @@ public class PbrMaterialManager : IDisposable
         var diffusePixels = new Color[baseColorPixels.Length];
         var specularGlossinessPixels = new Color[baseColorPixels.Length];
 
+        var diffuseTextureFormat = TextureFormat.RGB24;
         for (int i = 0; i < baseColorPixels.Length; i++)
         {
             var metallicRoughness = new MetallicRoughness
@@ -109,12 +110,18 @@ public class PbrMaterialManager : IDisposable
 
             var specularGlossiness = PbrUtilities.Convert(metallicRoughness);
 
+            if (specularGlossiness.Diffuse.a != 1.0f)
+            {
+                diffuseTextureFormat = TextureFormat.ARGB32;
+            }
+
             diffusePixels[i] = specularGlossiness.Diffuse.gamma;
+
             specularGlossinessPixels[i] = specularGlossiness.Specular.gamma;
             specularGlossinessPixels[i].a = specularGlossiness.Glossiness;
         }
 
-        var diffuseTexture = new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false);
+        var diffuseTexture = new Texture2D(info._MainTex.width, info._MainTex.height, diffuseTextureFormat, false);
         diffuseTexture.SetPixels(diffusePixels);
         diffuseTexture.Apply();
         this.objects.Add(diffuseTexture);
@@ -155,6 +162,7 @@ public class PbrMaterialManager : IDisposable
         var baseColorPixels = new Color[diffusePixels.Length];
         var metallicGlossPixels = new Color[diffusePixels.Length];
 
+        var baseColorTextureFormat = TextureFormat.RGB24;
         for (int i = 0; i < diffusePixels.Length; i++)
         {
             var specularGlossiness = new SpecularGlossiness
@@ -166,6 +174,11 @@ public class PbrMaterialManager : IDisposable
 
             var metallicRoughness = PbrUtilities.Convert(specularGlossiness);
 
+            if (metallicRoughness.BaseColor.a != 1.0f)
+            {
+                baseColorTextureFormat = TextureFormat.ARGB32;
+            }
+
             baseColorPixels[i] = metallicRoughness.BaseColor.gamma;
 
             var metallic = Mathf.LinearToGammaSpace(metallicRoughness.Metallic);
@@ -173,7 +186,7 @@ public class PbrMaterialManager : IDisposable
             metallicGlossPixels[i] = new Color(metallic, metallic, metallic, glossiness);
         }
 
-        var baseColorTexture = new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false);
+        var baseColorTexture = new Texture2D(info._MainTex.width, info._MainTex.height, baseColorTextureFormat, false);
         baseColorTexture.SetPixels(baseColorPixels);
         baseColorTexture.Apply();
         this.objects.Add(baseColorTexture);
