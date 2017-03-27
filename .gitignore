@@ -1,3 +1,7 @@
-UnityProject/Library
-UnityProject/Temp
-UnityProject/Assets/LocalDev
+/UnityProject/Library
+/UnityProject/Temp
+/UnityProject/Assets/LocalDev
+/UnityProject/Assets/LocalDev.meta
+/UnityProject/UnityProject.sln
+/UnityProject/UnityProject.CSharp.Editor.csproj
+/UnityProject/UnityProject.CSharp.csproj
