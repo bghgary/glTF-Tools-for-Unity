@@ -46,6 +46,7 @@ namespace Gltf.Schema
     [Serializable]
     public enum AlphaMode
     {
+        OPAQUE,
         MASK,
         BLEND,
     }
@@ -176,7 +177,7 @@ namespace Gltf.Schema
         public MaterialTexture EmissiveTexture;
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public AlphaMode? AlphaMode;
+        public AlphaMode AlphaMode;
 
         public float AlphaCutoff;
 
@@ -185,7 +186,7 @@ namespace Gltf.Schema
         public bool ShouldSerializeOcclusionTexture() { return this.OcclusionTexture != null; }
         public bool ShouldSerializeEmissiveFactor() { return this.EmissiveFactor != null && !this.EmissiveFactor.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f }); }
         public bool ShouldSerializeEmissiveTexture() { return this.EmissiveTexture != null; }
-        public bool ShouldSerializeAlphaMode() { return this.AlphaMode.HasValue; }
+        public bool ShouldSerializeAlphaMode() { return this.AlphaMode != AlphaMode.OPAQUE; }
         public bool ShouldSerializeAlphaCutoff() { return this.AlphaCutoff != 0.5f; }
     }
 

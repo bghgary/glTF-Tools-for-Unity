@@ -28,15 +28,53 @@ namespace Gltf.Serialization
                 }
             }
 
+            private readonly Dictionary<OcclusionInfo, Texture2D> occlusionInfoToTextureCache = new Dictionary<OcclusionInfo, Texture2D>();
+
             public KHR_materials_pbrSpecularGlossiness(Exporter exporter)
                 : base(exporter)
             {
                 this.exporter.extensionsUsed.Add(this.GetType().Name);
             }
 
+            public override bool ExportMaterial(Material unityMaterial, out int index)
+            {
+                exporter.ExportMaterialCore(unityMaterial, false, out index);
+                this.ExportMaterialOcclusion(unityMaterial, index);
+                return true;
+            }
+
+            private void ExportMaterialOcclusion(Material unityMaterial, int index)
+            {
+                var info = unityMaterial.GetInfo<OcclusionInfo>();
+                var material = this.exporter.materials[index];
+
+                if (info._OcclusionMap != null)
+                {
+                    Texture2D texture;
+                    if (!this.occlusionInfoToTextureCache.TryGetValue(info, out texture))
+                    {
+                        var pixels = info._OcclusionMap.GetPixels();
+                        for (int i = 0; i < pixels.Length; i++)
+                        {
+                            pixels[i] = pixels[i].linear;
+                        }
+
+                        texture = this.exporter.objectTracker.Add(new Texture2D(info._OcclusionMap.width, info._OcclusionMap.height, TextureFormat.RGB24, false));
+                        texture.SetPixels(pixels);
+                        texture.Apply();
+
+                        material.OcclusionTexture = new Gltf.Schema.MaterialOcclusionTexture
+                        {
+                            Index = this.exporter.ExportTexture(texture, FormatMaterialTextureName("occlusion", index)),
+                            Strength = info._OcclusionStrength,
+                        };
+                    }
+                }
+            }
+
             public override void PostExportMaterial(int index, Material unityMaterial)
             {
-                var info = this.exporter.pbrMaterialManager.ConvertToSpecular(unityMaterial).GetInfo<SpecularMaterialInfo>();
+                var info = this.exporter.pbrMaterialManager.ConvertToSpecular(unityMaterial).GetInfo<SpecularInfo>();
 
                 if (info._SmoothnessTextureChannel != 0)
                 {

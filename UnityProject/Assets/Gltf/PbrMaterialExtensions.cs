@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-public struct MetallicMaterialInfo
+public struct MetallicInfo
 {
     public Color _Color;
     public Texture2D _MainTex;
@@ -12,7 +12,7 @@ public struct MetallicMaterialInfo
     public float _SmoothnessTextureChannel;
 }
 
-public struct SpecularMaterialInfo
+public struct SpecularInfo
 {
     public Color _Color;
     public Texture2D _MainTex;
@@ -23,14 +23,26 @@ public struct SpecularMaterialInfo
     public float _SmoothnessTextureChannel;
 }
 
-public struct CommonMaterialInfo
+public struct AlphaInfo
 {
     public float _Mode;
     public float _Cutoff;
+}
+
+public struct NormalInfo
+{
     public Texture2D _BumpMap;
     public float _BumpScale;
+}
+
+public struct OcclusionInfo
+{
     public Texture2D _OcclusionMap;
     public float _OcclusionStrength;
+}
+
+public struct EmissiveInfo
+{
     public Color _EmissionColor;
     public Texture2D _EmissionMap;
 }

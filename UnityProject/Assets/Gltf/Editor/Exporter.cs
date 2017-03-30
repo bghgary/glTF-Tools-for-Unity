@@ -51,13 +51,21 @@ namespace Gltf.Serialization
             }
         }
 
+        public struct OcclusionMetallicInfo
+        {
+            public OcclusionInfo Occlusion;
+            public MetallicInfo Metallic;
+        }
+
         private string outputDirectory;
         private string outputName;
         private bool outputBinary;
         private ImageFormat imageFormat;
 
-        private readonly PbrMaterialManager pbrMaterialManager = new PbrMaterialManager();
-        private readonly Dictionary<MetallicMaterialInfo, Texture2D> metallicInfoToTextureCache = new Dictionary<MetallicMaterialInfo, Texture2D>();
+        private readonly ObjectTracker objectTracker;
+        private readonly PbrMaterialManager pbrMaterialManager;
+
+        private readonly Dictionary<OcclusionMetallicInfo, Texture2D> occlusionMetallicInfoToTextureCache = new Dictionary<OcclusionMetallicInfo, Texture2D>();
 
         private BinaryWriter dataWriter;
         private readonly Dictionary<UnityEngine.Object, int> objectToIndexCache = new Dictionary<UnityEngine.Object, int>();
@@ -73,6 +81,12 @@ namespace Gltf.Serialization
         private readonly List<Schema.Node> nodes = new List<Schema.Node>();
         private readonly List<Schema.Sampler> samplers = new List<Schema.Sampler>();
         private readonly List<Schema.Texture> textures = new List<Schema.Texture>();
+
+        public Exporter()
+        {
+            this.objectTracker = new ObjectTracker();
+            this.pbrMaterialManager = new PbrMaterialManager(this.objectTracker);
+        }
 
         public void Export(IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
         {
@@ -205,8 +219,7 @@ namespace Gltf.Serialization
 
         public void Dispose()
         {
-            this.metallicInfoToTextureCache.Values.ForEach(texture => UnityEngine.Object.DestroyImmediate(texture));
-            this.pbrMaterialManager.Dispose();
+            this.objectTracker.Dispose();
         }
 
         private static int Align(int value, int size)
@@ -305,70 +318,7 @@ namespace Gltf.Serialization
 
             if (!this.ApplyExtensions(extension => extension.ExportMaterial(unityMaterial, out index)))
             {
-                var info = this.pbrMaterialManager.ConvertToMetallic(unityMaterial).GetInfo<MetallicMaterialInfo>();
-
-                if (info._SmoothnessTextureChannel != 0)
-                {
-                    throw new NotImplementedException();
-                }
-
-                index = this.materials.Count;
-
-                var material = new Schema.Material
-                {
-                    Name = unityMaterial.name,
-                    PbrMetallicRoughness = new Schema.MaterialPbrMetallicRoughness
-                    {
-                        BaseColorFactor = ColorToArray(info._Color.linear, 4),
-                    },
-                };
-
-                if (info._MainTex != null)
-                {
-                    material.PbrMetallicRoughness.BaseColorTexture = new Schema.MaterialTexture
-                    {
-                        Index = this.ExportTexture(info._MainTex, FormatMaterialTextureName("baseColor", index)),
-                    };
-                }
-
-                if (info._MetallicGlossMap == null)
-                {
-                    material.PbrMetallicRoughness.MetallicFactor = Mathf.GammaToLinearSpace(info._Metallic);
-                    material.PbrMetallicRoughness.RoughnessFactor = 1.0f - info._Glossiness;
-                }
-                else
-                {
-                    material.PbrMetallicRoughness.MetallicFactor = 1.0f;
-                    material.PbrMetallicRoughness.RoughnessFactor = 1.0f;
-
-                    Texture2D metallicRoughnessTexture;
-                    if (!this.metallicInfoToTextureCache.TryGetValue(info, out metallicRoughnessTexture))
-                    {
-                        var pixels = info._MetallicGlossMap.GetPixels();
-                        for (int i = 0; i < pixels.Length; i++)
-                        {
-                            pixels[i].r = Mathf.GammaToLinearSpace(pixels[i].r);
-                            pixels[i].g = 1.0f - (pixels[i].a * info._GlossMapScale);
-                            pixels[i].b = 0.0f;
-                            pixels[i].a = 1.0f;
-                        }
-
-                        metallicRoughnessTexture = new Texture2D(info._MetallicGlossMap.width, info._MetallicGlossMap.height, TextureFormat.RGB24, false);
-                        metallicRoughnessTexture.SetPixels(pixels);
-                        metallicRoughnessTexture.Apply();
-
-                        this.metallicInfoToTextureCache.Add(info, metallicRoughnessTexture);
-                    }
-
-                    material.PbrMetallicRoughness.MetallicRoughnessTexture = new Schema.MaterialTexture
-                    {
-                        Index = this.ExportTexture(metallicRoughnessTexture, FormatMaterialTextureName("metallicRoughness", index)),
-                    };
-                }
-
-                this.ExportMaterialCommon(unityMaterial, material, index);
-
-                this.materials.Add(material);
+                this.ExportMaterialCore(unityMaterial, true, out index);
             }
 
             Debug.Assert(index != -1);
@@ -378,42 +328,120 @@ namespace Gltf.Serialization
             return index;
         }
 
-        private void ExportMaterialCommon(Material unityMaterial, Schema.Material material, int index)
+        private void ExportMaterialCore(Material unityMaterial, bool packOcclusion, out int index)
         {
-            var info = unityMaterial.GetInfo<CommonMaterialInfo>();
-
-            if (info._BumpMap != null)
+            var info = new OcclusionMetallicInfo
             {
-                material.NormalTexture = new Schema.MaterialNormalTexture
+                Metallic = this.pbrMaterialManager.ConvertToMetallic(unityMaterial).GetInfo<MetallicInfo>(),
+                Occlusion = packOcclusion ? unityMaterial.GetInfo<OcclusionInfo>() : default(OcclusionInfo),
+            };
+
+            if (info.Metallic._SmoothnessTextureChannel != 0)
+            {
+                throw new NotImplementedException();
+            }
+
+            if (info.Occlusion._OcclusionMap == null)
+            {
+                packOcclusion = false;
+            }
+
+            index = this.materials.Count;
+
+            var material = new Schema.Material
+            {
+                Name = unityMaterial.name,
+                PbrMetallicRoughness = new Schema.MaterialPbrMetallicRoughness
                 {
-                    Index = this.ExportTexture(info._BumpMap, FormatMaterialTextureName("normal", index), true),
-                    Scale = info._BumpScale,
+                    BaseColorFactor = ColorToArray(info.Metallic._Color.linear, 4),
+                },
+            };
+
+            if (info.Metallic._MainTex != null)
+            {
+                material.PbrMetallicRoughness.BaseColorTexture = new Schema.MaterialTexture
+                {
+                    Index = this.ExportTexture(info.Metallic._MainTex, FormatMaterialTextureName("baseColor", index)),
                 };
             }
 
-            if (info._OcclusionMap != null)
+            if (info.Metallic._MetallicGlossMap == null && !packOcclusion)
             {
-                material.OcclusionTexture = new Schema.MaterialOcclusionTexture
+                material.PbrMetallicRoughness.MetallicFactor = Mathf.GammaToLinearSpace(info.Metallic._Metallic);
+                material.PbrMetallicRoughness.RoughnessFactor = 1.0f - info.Metallic._Glossiness;
+            }
+            else
+            {
+                material.PbrMetallicRoughness.MetallicFactor = 1.0f;
+                material.PbrMetallicRoughness.RoughnessFactor = 1.0f;
+
+                Texture2D texture;
+                if (!this.occlusionMetallicInfoToTextureCache.TryGetValue(info, out texture))
                 {
-                    Index = this.ExportTexture(info._OcclusionMap, FormatMaterialTextureName("occlusion", index)),
-                    Strength = info._OcclusionStrength,
+                    var pixels = info.Metallic._MetallicGlossMap.GetPixels();
+                    for (int i = 0; i < pixels.Length; i++)
+                    {
+                        pixels[i] = new Color(0.0f,
+                            1.0f - (pixels[i].a * info.Metallic._GlossMapScale),
+                            Mathf.GammaToLinearSpace(pixels[i].grayscale));
+                    }
+
+                    if (packOcclusion)
+                    {
+                        var occlusionPixels = info.Occlusion._OcclusionMap.GetPixels();
+
+                        if (occlusionPixels.Length != pixels.Length)
+                        {
+                            throw new NotSupportedException();
+                        }
+
+                        for (int i = 0; i < pixels.Length; i++)
+                        {
+                            pixels[i].r = Mathf.GammaToLinearSpace(occlusionPixels[i].grayscale);
+                        }
+                    }
+
+                    texture = this.objectTracker.Add(new Texture2D(info.Metallic._MetallicGlossMap.width, info.Metallic._MetallicGlossMap.height, TextureFormat.RGB24, false));
+                    texture.SetPixels(pixels);
+                    texture.Apply();
+
+                    this.occlusionMetallicInfoToTextureCache.Add(info, texture);
+                }
+
+                var textureName = packOcclusion ? "occlusionRoughnessMetallic" : "roughnessMetallic";
+                var textureIndex = this.ExportTexture(texture, FormatMaterialTextureName(textureName, index));
+
+                material.PbrMetallicRoughness.MetallicRoughnessTexture = new Schema.MaterialTexture
+                {
+                    Index = textureIndex,
                 };
+
+                if (packOcclusion)
+                {
+                    material.OcclusionTexture = new Schema.MaterialOcclusionTexture
+                    {
+                        Index = textureIndex,
+                        Strength = info.Occlusion._OcclusionStrength,
+                    };
+                }
             }
 
-            material.EmissiveFactor = ColorToArray(info._EmissionColor.linear, 3);
+            this.materials.Add(material);
 
-            if (info._EmissionMap != null)
-            {
-                material.EmissiveTexture = new Schema.MaterialTexture
-                {
-                    Index = this.ExportTexture(info._EmissionMap, FormatMaterialTextureName("emissive", index)),
-                };
-            }
+            this.ExportMaterialAlpha(unityMaterial, index);
+            this.ExportMaterialNormal(unityMaterial, index);
+            this.ExportMaterialEmissive(unityMaterial, index);
+        }
+
+        private void ExportMaterialAlpha(Material unityMaterial, int index)
+        {
+            var info = unityMaterial.GetInfo<AlphaInfo>();
+            var material = this.materials[index];
 
             switch ((int)info._Mode)
             {
                 case 0: // Opaque
-                    material.AlphaMode = null;
+                    material.AlphaMode = Schema.AlphaMode.OPAQUE;
                     break;
                 case 1: // Cutout
                     material.AlphaMode = Schema.AlphaMode.MASK;
@@ -427,6 +455,37 @@ namespace Gltf.Serialization
             }
 
             material.AlphaCutoff = (material.AlphaMode == Schema.AlphaMode.BLEND ? info._Cutoff : 0.5f);
+        }
+
+        private void ExportMaterialNormal(Material unityMaterial, int index)
+        {
+            var info = unityMaterial.GetInfo<NormalInfo>();
+            var material = this.materials[index];
+
+            if (info._BumpMap != null)
+            {
+                material.NormalTexture = new Schema.MaterialNormalTexture
+                {
+                    Index = this.ExportTexture(info._BumpMap, FormatMaterialTextureName("normal", index), true),
+                    Scale = info._BumpScale,
+                };
+            }
+        }
+
+        private void ExportMaterialEmissive(Material unityMaterial, int index)
+        {
+            var info = unityMaterial.GetInfo<EmissiveInfo>();
+            var material = this.materials[index];
+
+            material.EmissiveFactor = ColorToArray(info._EmissionColor.linear, 3);
+
+            if (info._EmissionMap != null)
+            {
+                material.EmissiveTexture = new Schema.MaterialTexture
+                {
+                    Index = this.ExportTexture(info._EmissionMap, FormatMaterialTextureName("emissive", index)),
+                };
+            }
         }
 
         private static bool TextureFormatHasAlpha(TextureFormat textureFormat)
@@ -453,7 +512,7 @@ namespace Gltf.Serialization
             {
                 if (normalMap)
                 {
-                    unityTexture = UnpackNormals(unityTexture);
+                    unityTexture = this.UnpackNormals(unityTexture);
                 }
 
                 var imageFormat = (TextureFormatHasAlpha(unityTexture.format) ? ImageFormat.PNG : this.imageFormat);
@@ -628,7 +687,7 @@ namespace Gltf.Serialization
             }
         }
 
-        private static Texture2D UnpackNormals(Texture2D texture)
+        private Texture2D UnpackNormals(Texture2D texture)
         {
             var normals = texture.GetPixels();
             for (var i = 0; i < normals.Length; i++)
@@ -641,7 +700,7 @@ namespace Gltf.Serialization
                 normals[i].a = 1;
             }
 
-            texture = new Texture2D(texture.width, texture.height, TextureFormat.RGB24, false);
+            texture = this.objectTracker.Add(new Texture2D(texture.width, texture.height, TextureFormat.RGB24, false));
             texture.SetPixels(normals);
             texture.Apply();
 

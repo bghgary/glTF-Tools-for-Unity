@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PbrMaterialManager : IDisposable
+public class PbrMaterialManager
 {
     private static class ShaderName
     {
@@ -10,28 +10,28 @@ public class PbrMaterialManager : IDisposable
         public const string StandardSpecularSetup = "Standard (Specular setup)";
     }
 
-    private Dictionary<SpecularMaterialInfo, MetallicMaterialInfo> specularToMetallicCache = new Dictionary<SpecularMaterialInfo, MetallicMaterialInfo>();
-    private Dictionary<MetallicMaterialInfo, SpecularMaterialInfo> metallicToSpecularCache = new Dictionary<MetallicMaterialInfo, SpecularMaterialInfo>();
-    private List<UnityEngine.Object> objects = new List<UnityEngine.Object>();
+    private ObjectTracker objectTracker;
+    private Dictionary<SpecularInfo, MetallicInfo> specularToMetallicCache = new Dictionary<SpecularInfo, MetallicInfo>();
+    private Dictionary<MetallicInfo, SpecularInfo> metallicToSpecularCache = new Dictionary<MetallicInfo, SpecularInfo>();
 
-    public void Dispose()
+    public PbrMaterialManager(ObjectTracker objectTracker)
     {
-        this.objects.ForEach(material => UnityEngine.Object.DestroyImmediate(material));
+        this.objectTracker = objectTracker;
     }
 
     public Material ConvertToMetallic(Material material)
     {
-        MetallicMaterialInfo metallicInfo;
+        MetallicInfo metallicInfo;
 
         var shaderName = material.shader.name;
         switch (shaderName)
         {
             case ShaderName.Standard:
-                metallicInfo = material.GetInfo<MetallicMaterialInfo>();
+                metallicInfo = material.GetInfo<MetallicInfo>();
                 break;
 
             case ShaderName.StandardSpecularSetup:
-                var specularInfo = material.GetInfo<SpecularMaterialInfo>();
+                var specularInfo = material.GetInfo<SpecularInfo>();
                 if (!this.specularToMetallicCache.TryGetValue(specularInfo, out metallicInfo))
                 {
                     metallicInfo = this.ConvertToMetallic(specularInfo);
@@ -43,21 +43,20 @@ public class PbrMaterialManager : IDisposable
                 throw new NotSupportedException("Shader '" + shaderName + "' is not supported");
         }
 
-        material = new Material(Shader.Find(ShaderName.Standard));
+        material = this.objectTracker.Add(new Material(Shader.Find(ShaderName.Standard)));
         material.SetInfo(metallicInfo);
-        this.objects.Add(material);
         return material;
     }
 
     public Material ConvertToSpecular(Material material)
     {
-        SpecularMaterialInfo specularInfo;
+        SpecularInfo specularInfo;
 
         var shaderName = material.shader.name;
         switch (shaderName)
         {
             case ShaderName.Standard:
-                var metallicInfo = material.GetInfo<MetallicMaterialInfo>();
+                var metallicInfo = material.GetInfo<MetallicInfo>();
                 if (!this.metallicToSpecularCache.TryGetValue(metallicInfo, out specularInfo))
                 {
                     specularInfo = this.ConvertToSpecular(metallicInfo);
@@ -66,20 +65,19 @@ public class PbrMaterialManager : IDisposable
                 break;
 
             case ShaderName.StandardSpecularSetup:
-                specularInfo = material.GetInfo<SpecularMaterialInfo>();
+                specularInfo = material.GetInfo<SpecularInfo>();
                 break;
 
             default:
                 throw new NotSupportedException("Shader '" + shaderName + "' is not supported");
         }
 
-        material = new Material(Shader.Find(ShaderName.StandardSpecularSetup));
+        material = this.objectTracker.Add(new Material(Shader.Find(ShaderName.StandardSpecularSetup)));
         material.SetInfo(specularInfo);
-        this.objects.Add(material);
         return material;
     }
 
-    private SpecularMaterialInfo ConvertToSpecular(MetallicMaterialInfo info)
+    private SpecularInfo ConvertToSpecular(MetallicInfo info)
     {
         if (info._MainTex == null || info._MetallicGlossMap == null)
         {
@@ -121,17 +119,15 @@ public class PbrMaterialManager : IDisposable
             specularGlossinessPixels[i].a = specularGlossiness.Glossiness;
         }
 
-        var diffuseTexture = new Texture2D(info._MainTex.width, info._MainTex.height, diffuseTextureFormat, false);
+        var diffuseTexture = this.objectTracker.Add(new Texture2D(info._MainTex.width, info._MainTex.height, diffuseTextureFormat, false));
         diffuseTexture.SetPixels(diffusePixels);
         diffuseTexture.Apply();
-        this.objects.Add(diffuseTexture);
 
-        var specularGlossinessTexture = new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false);
+        var specularGlossinessTexture = this.objectTracker.Add(new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false));
         specularGlossinessTexture.SetPixels(specularGlossinessPixels);
         specularGlossinessTexture.Apply();
-        this.objects.Add(specularGlossinessTexture);
 
-        return new SpecularMaterialInfo
+        return new SpecularInfo
         {
             _Color = Color.white,
             _MainTex = diffuseTexture,
@@ -143,7 +139,7 @@ public class PbrMaterialManager : IDisposable
         };
     }
 
-    private MetallicMaterialInfo ConvertToMetallic(SpecularMaterialInfo info)
+    private MetallicInfo ConvertToMetallic(SpecularInfo info)
     {
         if (info._MainTex == null || info._SpecGlossMap == null)
         {
@@ -186,17 +182,15 @@ public class PbrMaterialManager : IDisposable
             metallicGlossPixels[i] = new Color(metallic, metallic, metallic, glossiness);
         }
 
-        var baseColorTexture = new Texture2D(info._MainTex.width, info._MainTex.height, baseColorTextureFormat, false);
+        var baseColorTexture = this.objectTracker.Add(new Texture2D(info._MainTex.width, info._MainTex.height, baseColorTextureFormat, false));
         baseColorTexture.SetPixels(baseColorPixels);
         baseColorTexture.Apply();
-        this.objects.Add(baseColorTexture);
 
-        var metallicGlossTexture = new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false);
+        var metallicGlossTexture = this.objectTracker.Add(new Texture2D(info._MainTex.width, info._MainTex.height, TextureFormat.ARGB32, false));
         metallicGlossTexture.SetPixels(metallicGlossPixels);
         metallicGlossTexture.Apply();
-        this.objects.Add(metallicGlossTexture);
 
-        return new MetallicMaterialInfo
+        return new MetallicInfo
         {
             _Color = Color.white,
             _MainTex = baseColorTexture,
