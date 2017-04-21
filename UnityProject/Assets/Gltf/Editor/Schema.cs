@@ -191,18 +191,28 @@ namespace Gltf.Schema
     }
 
     [Serializable]
+    public class Target
+    {
+        public int Position;
+        public int Normal;
+        public int Tangent;
+    }
+
+    [Serializable]
     public class MeshPrimitive : ChildOfRootProperty
     {
         public IEnumerable<KeyValuePair<string, int>> Attributes;
         public int Indices;
         public int Material;
         public PrimitiveMode Mode;
+        public IEnumerable<Target> Targets;
     }
 
     [Serializable]
     public class Mesh : ChildOfRootProperty
     {
         public IEnumerable<MeshPrimitive> Primitives;
+        public IEnumerable<float> Weights;
     }
 
     [Serializable]

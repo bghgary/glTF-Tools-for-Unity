@@ -271,14 +271,27 @@ namespace Gltf.Serialization
                     var unityMaterial = renderer.sharedMaterial;
                     var materialIndex = this.ExportMaterial(unityMaterial);
 
+                    Mesh unityMesh = null;
+                    SkinnedMeshRenderer smr = null;
+
                     var meshFilter = gameObject.GetComponent<MeshFilter>();
                     if (meshFilter != null)
                     {
-                        var unityMesh = gameObject.GetComponent<MeshFilter>().sharedMesh;
-                        if (unityMesh.triangles.Any())
+                        unityMesh = meshFilter.sharedMesh;
+                    }
+                    else
+                    {
+                        // We hit this scenario when the object has morph targets / blendshapes.
+                        smr = gameObject.GetComponent<SkinnedMeshRenderer>();
+                        if (smr != null)
                         {
-                            node.Mesh = this.ExportMesh(unityMesh, materialIndex);
+                            unityMesh = smr.sharedMesh;
                         }
+                    }
+
+                    if ((unityMesh != null) && unityMesh.triangles.Any())
+                    {
+                        node.Mesh = this.ExportMesh(unityMesh, materialIndex, smr);
                     }
                 }
 
@@ -568,7 +581,7 @@ namespace Gltf.Serialization
             return index;
         }
 
-        private int ExportMesh(Mesh unityMesh, int materialIndex)
+        private int ExportMesh(Mesh unityMesh, int materialIndex, SkinnedMeshRenderer skinnedMeshRenderer)
         {
             int index = -1;
             if (this.objectToIndexCache.TryGetValue(unityMesh, out index))
@@ -612,6 +625,43 @@ namespace Gltf.Serialization
 
                 attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices)));
 
+                // Blendshapes / MorphTargets
+                var targets = new List<Schema.Target>();
+                float[] weights = new float[unityMesh.blendShapeCount];
+                for (int blendShapeIndex = 0; blendShapeIndex < unityMesh.blendShapeCount; blendShapeIndex++)
+                {
+                    string name = unityMesh.GetBlendShapeName(blendShapeIndex);
+
+                    // We need to get the weight from the SkinnedMeshRenderer because this represents the currently
+                    // defined weight by the user to apply to this blendshape.  If we instead got the value from
+                    // the unityMesh, it would be a _per frame_ weight, and for a single-frame blendshape, that would
+                    // always be 100.  A blendshape might have more than one frame if a user wanted to more tightly
+                    // control how a blendshape will be animated during weight changes (e.g. maybe they want changes
+                    // between 0-50% to be really minor, but between 50-100 to be extreme, hence they'd have two frames
+                    // where the first frame would have a weight of 50 (meaning any weight between 0-50 should be relative
+                    // to the values in this frame) and then any weight between 50-100 would be relevant to the weights in
+                    // the second frame.  See Post 20 for more info:
+                    // https://forum.unity3d.com/threads/is-there-some-method-to-add-blendshape-in-editor.298002/#post-2015679
+                    weights[blendShapeIndex] = skinnedMeshRenderer.GetBlendShapeWeight(blendShapeIndex) / 100;
+
+                    // As described above, a blendshape can have multiple frames.  Given that glTF only supports a single frame
+                    // per blendshape, we'll always use the final frame (the one that would be for when 100% weight is applied.
+                    int frameIndex = unityMesh.GetBlendShapeFrameCount(blendShapeIndex) - 1;
+
+                    // Not getting tangents since 2.0 doesn't support those yet for morph targets.  Tangents have to be
+                    // re-calculated by the loader.
+                    Vector3[] deltaVertices = new Vector3[unityMesh.vertexCount];
+                    Vector3[] deltaNormals = new Vector3[unityMesh.vertexCount];
+                    Vector3[] deltaTangents = new Vector3[unityMesh.vertexCount];
+                    unityMesh.GetBlendShapeFrameVertices(blendShapeIndex, frameIndex, deltaVertices, deltaNormals, deltaTangents);
+
+                    targets.Add(new Schema.Target {
+                        Normal = this.ExportData(InvertZ(deltaNormals), name),
+                        Position = this.ExportData(InvertZ(deltaVertices), name),
+                        Tangent = this.ExportData(deltaTangents, name)
+                    });
+                }
+
                 index = this.meshes.Count;
                 this.meshes.Add(new Schema.Mesh
                 {
@@ -624,8 +674,10 @@ namespace Gltf.Serialization
                             Indices = this.ExportData(FlipFaces(unityMesh.triangles).Select(triangle => (ushort)triangle).ToArray()),
                             Material = materialIndex,
                             Mode = Schema.PrimitiveMode.TRIANGLES,
+                            Targets = targets,
                         },
                     },
+                    Weights = weights,
                 });
             }
 
