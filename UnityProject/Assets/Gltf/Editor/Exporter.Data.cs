@@ -42,7 +42,6 @@ namespace Gltf.Serialization
             this.accessors.Add(new Schema.Accessor
             {
                 BufferView = bufferViewIndex,
-                ByteOffset = 0,
                 ComponentType = componentType,
                 Count = count,
                 Type = type,

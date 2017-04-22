@@ -66,8 +66,8 @@ namespace Gltf.Schema
     [Serializable]
     public class Accessor : ChildOfRootProperty
     {
-        public int BufferView;
-        public int ByteOffset;
+        public int? BufferView;
+        public int? ByteOffset;
         public AccessorComponentType ComponentType;
         public bool Normalized;
         public int Count;
@@ -78,6 +78,8 @@ namespace Gltf.Schema
         public IEnumerable<object> Max;
         public IEnumerable<object> Min;
 
+        public bool ShouldSerializeBufferView() { return this.BufferView.HasValue; }
+        public bool ShouldSerializeByteOffset() { return this.ByteOffset.HasValue && this.ByteOffset != 0; }
         public bool ShouldSerializeNormalized() { return this.Normalized; }
     }
 
@@ -105,12 +107,13 @@ namespace Gltf.Schema
     public class BufferView : ChildOfRootProperty
     {
         public int Buffer;
-        public int ByteOffset;
+        public int? ByteOffset;
         public int ByteLength;
-        public int ByteStride;
+        public int? ByteStride;
         public BufferViewTarget? Target;
 
-        public bool ShouldSerializeByteStride() { return this.ByteStride != 0; }
+        public bool ShouldSerializeByteOffset() { return this.ByteOffset.HasValue && this.ByteOffset != 0; }
+        public bool ShouldSerializeByteStride() { return this.ByteStride.HasValue && ByteStride != 0; }
         public bool ShouldSerializeTarget() { return this.Target.HasValue; }
     }
 
@@ -131,14 +134,14 @@ namespace Gltf.Schema
     {
         public IEnumerable<float> BaseColorFactor;
         public MaterialTexture BaseColorTexture;
-        public float MetallicFactor;
-        public float RoughnessFactor;
+        public float? MetallicFactor;
+        public float? RoughnessFactor;
         public MaterialTexture MetallicRoughnessTexture;
 
         public bool ShouldSerializeBaseColorFactor() { return this.BaseColorFactor != null && !this.BaseColorFactor.SequenceEqual(new[] { 1.0f, 1.0f, 1.0f, 1.0f }); }
         public bool ShouldSerializeBaseColorTexture() { return this.BaseColorTexture != null; }
-        public bool ShouldSerializeMetallicFactor() { return this.MetallicFactor != 1.0f; }
-        public bool ShouldSerializeRoughnessFactor() { return this.RoughnessFactor != 1.0f; }
+        public bool ShouldSerializeMetallicFactor() { return this.MetallicFactor.HasValue && this.MetallicFactor != 1.0f; }
+        public bool ShouldSerializeRoughnessFactor() { return this.RoughnessFactor.HasValue && this.RoughnessFactor != 1.0f; }
         public bool ShouldSerializeMetallicRoughnessTexture() { return this.MetallicRoughnessTexture != null; }
     }
 
@@ -146,25 +149,25 @@ namespace Gltf.Schema
     public class MaterialTexture
     {
         public int Index;
-        public int TexCoord;
+        public int? TexCoord;
 
-        public bool ShouldSerializeTexCoord() { return this.TexCoord != 0; }
+        public bool ShouldSerializeTexCoord() { return this.TexCoord.HasValue && this.TexCoord != 0; }
     }
 
     [Serializable]
     public class MaterialNormalTexture : MaterialTexture
     {
-        public float Scale;
+        public float? Scale;
 
-        public bool ShouldSerializeScale() { return this.Scale != 1.0f; }
+        public bool ShouldSerializeScale() { return this.Scale.HasValue && this.Scale != 1.0f; }
     }
 
     [Serializable]
     public class MaterialOcclusionTexture : MaterialTexture
     {
-        public float Strength;
+        public float? Strength;
 
-        public bool ShouldSerializeStrength() { return this.Strength != 1.0f; }
+        public bool ShouldSerializeStrength() { return this.Strength.HasValue && this.Strength != 1.0f; }
     }
 
     [Serializable]
@@ -177,26 +180,33 @@ namespace Gltf.Schema
         public MaterialTexture EmissiveTexture;
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public AlphaMode AlphaMode;
+        public AlphaMode? AlphaMode;
 
-        public float AlphaCutoff;
+        public float? AlphaCutoff;
+
+        public bool? DoubleSided;
 
         public bool ShouldSerializePbrMetallicRoughness() { return this.PbrMetallicRoughness != null; }
         public bool ShouldSerializeNormalTexture() { return this.NormalTexture != null; }
         public bool ShouldSerializeOcclusionTexture() { return this.OcclusionTexture != null; }
         public bool ShouldSerializeEmissiveFactor() { return this.EmissiveFactor != null && !this.EmissiveFactor.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f }); }
         public bool ShouldSerializeEmissiveTexture() { return this.EmissiveTexture != null; }
-        public bool ShouldSerializeAlphaMode() { return this.AlphaMode != AlphaMode.OPAQUE; }
-        public bool ShouldSerializeAlphaCutoff() { return this.AlphaCutoff != 0.5f; }
+        public bool ShouldSerializeAlphaMode() { return this.AlphaMode.HasValue && this.AlphaMode != Schema.AlphaMode.OPAQUE; }
+        public bool ShouldSerializeAlphaCutoff() { return this.AlphaCutoff.HasValue && this.AlphaCutoff != 0.5f; }
+        public bool ShouldSerializeDoubleSided() { return this.DoubleSided.HasValue && this.DoubleSided.Value; }
     }
 
     [Serializable]
     public class MeshPrimitive : ChildOfRootProperty
     {
         public IEnumerable<KeyValuePair<string, int>> Attributes;
-        public int Indices;
-        public int Material;
-        public PrimitiveMode Mode;
+        public int? Indices;
+        public int? Material;
+        public PrimitiveMode? Mode;
+
+        public bool ShouldSerializeIndices() { return this.Indices.HasValue; }
+        public bool ShouldSerializeMaterial() { return this.Material.HasValue; }
+        public bool ShouldSerializeMode() { return this.Mode.HasValue && this.Mode != PrimitiveMode.TRIANGLES; }
     }
 
     [Serializable]
@@ -222,11 +232,6 @@ namespace Gltf.Schema
     }
 
     [Serializable]
-    public class Sampler : ChildOfRootProperty
-    {
-    }
-
-    [Serializable]
     public class Scene : ChildOfRootProperty
     {
         public IEnumerable<int> Nodes;
@@ -235,8 +240,9 @@ namespace Gltf.Schema
     [Serializable]
     public class Texture : ChildOfRootProperty
     {
-        public int Sampler;
-        public int Source;
+        public int? Source;
+
+        public bool ShouldSerializeSource() { return this.Source.HasValue; }
     }
 
     [Serializable]
@@ -251,7 +257,6 @@ namespace Gltf.Schema
         public IEnumerable<Mesh> Meshes;
         public IEnumerable<Material> Materials;
         public IEnumerable<Node> Nodes;
-        public IEnumerable<Sampler> Samplers;
         public int? Scene;
         public IEnumerable<Scene> Scenes;
         public IEnumerable<Texture> Textures;
@@ -263,7 +268,6 @@ namespace Gltf.Schema
         public bool ShouldSerializeMeshes() { return this.Meshes != null && this.Meshes.Any(); }
         public bool ShouldSerializeMaterials() { return this.Materials != null && this.Materials.Any(); }
         public bool ShouldSerializeNodes() { return this.Nodes != null && this.Nodes.Any(); }
-        public bool ShouldSerializeSamplers() { return this.Samplers != null && this.Samplers.Any(); }
         public bool ShouldSerializeScene() { return this.Scene.HasValue; }
         public bool ShouldSerializeScenes() { return this.Scenes != null && this.Scenes.Any(); }
         public bool ShouldSerializeTextures() { return this.Textures != null && this.Textures.Any(); }

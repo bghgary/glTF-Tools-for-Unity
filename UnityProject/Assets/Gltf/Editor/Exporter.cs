@@ -21,18 +21,39 @@ namespace Gltf.Serialization
         PNG,
     }
 
-    public static class GameObjectExtensions
+    public struct ExportSettings
     {
-        public static void Export(this GameObject inputObject, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
+        public Formatting JsonFormatting;
+        public ImageFormat ImageFormat;
+        public Extensions Extensions;
+
+        public ExportSettings(Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
         {
-            new[] { inputObject }.Export(outputDirectory, outputName, outputBinary, jsonFormatting, imageFormat, extensions);
+            this.JsonFormatting = jsonFormatting;
+            this.ImageFormat = imageFormat;
+            this.Extensions = extensions;
         }
 
-        public static void Export(this IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
+        public static ExportSettings Default = new ExportSettings
+        {
+            JsonFormatting = Formatting.Indented,
+            ImageFormat = ImageFormat.PNG,
+            Extensions = Extensions.None,
+        };
+    }
+
+    public static class GameObjectExtensions
+    {
+        public static void Export(this GameObject inputObject, string outputDirectory, string outputName, bool outputBinary, ExportSettings settings)
+        {
+            new[] { inputObject }.Export(outputDirectory, outputName, outputBinary, settings);
+        }
+
+        public static void Export(this IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, ExportSettings settings)
         {
             using (var exporter = new Exporter())
             {
-                exporter.Export(inputObjects, outputDirectory, outputName, outputBinary, jsonFormatting, imageFormat, extensions);
+                exporter.Export(inputObjects, outputDirectory, outputName, outputBinary, settings);
             }
         }
     }
@@ -60,7 +81,7 @@ namespace Gltf.Serialization
         private string outputDirectory;
         private string outputName;
         private bool outputBinary;
-        private ImageFormat imageFormat;
+        private ExportSettings settings;
 
         private readonly ObjectTracker objectTracker;
         private readonly PbrMaterialManager pbrMaterialManager;
@@ -79,7 +100,6 @@ namespace Gltf.Serialization
         private readonly List<Schema.Mesh> meshes = new List<Schema.Mesh>();
         private readonly List<Schema.Material> materials = new List<Schema.Material>();
         private readonly List<Schema.Node> nodes = new List<Schema.Node>();
-        private readonly List<Schema.Sampler> samplers = new List<Schema.Sampler>();
         private readonly List<Schema.Texture> textures = new List<Schema.Texture>();
 
         public Exporter()
@@ -88,12 +108,12 @@ namespace Gltf.Serialization
             this.pbrMaterialManager = new PbrMaterialManager(this.objectTracker);
         }
 
-        public void Export(IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
+        public void Export(IEnumerable<GameObject> inputObjects, string outputDirectory, string outputName, bool outputBinary, ExportSettings settings)
         {
             this.outputDirectory = outputDirectory;
             this.outputName = outputName;
             this.outputBinary = outputBinary;
-            this.imageFormat = imageFormat;
+            this.settings = settings;
 
             this.dataWriter = new BinaryWriter(new MemoryStream());
             this.objectToIndexCache.Clear();
@@ -107,12 +127,11 @@ namespace Gltf.Serialization
             this.meshes.Clear();
             this.materials.Clear();
             this.nodes.Clear();
-            this.samplers.Clear();
             this.textures.Clear();
 
             Directory.CreateDirectory(this.outputDirectory);
 
-            if ((extensions & Extensions.KHR_materials_pbrSpecularGlossiness) != 0)
+            if ((this.settings.Extensions & Extensions.KHR_materials_pbrSpecularGlossiness) != 0)
             {
                 this.extensions.Add(new KHR_materials_pbrSpecularGlossiness(this));
             };
@@ -136,7 +155,6 @@ namespace Gltf.Serialization
                 Meshes = this.meshes,
                 Materials = this.materials,
                 Nodes = this.nodes,
-                Samplers = this.samplers,
                 Scene = 0,
                 Scenes = scenes,
                 Textures = this.textures,
@@ -144,7 +162,7 @@ namespace Gltf.Serialization
 
             var jsonSerializer = new JsonSerializer
             {
-                Formatting = jsonFormatting,
+                Formatting = this.settings.JsonFormatting,
                 ContractResolver = new CamelCasePropertyNamesContractResolver
                 {
                     NamingStrategy = new CamelCaseNamingStrategy
@@ -157,7 +175,7 @@ namespace Gltf.Serialization
             this.dataWriter.Flush();
             var dataBytes = ((MemoryStream)this.dataWriter.BaseStream).ToArray();
 
-            if (outputBinary)
+            if (this.outputBinary)
             {
                 Debug.Assert(this.buffers.Count == 0);
                 var alignedDataByteLength = Align(dataBytes.Length, 4);
@@ -268,15 +286,14 @@ namespace Gltf.Serialization
                 var renderer = gameObject.GetComponent<Renderer>();
                 if (renderer != null)
                 {
-                    var unityMaterial = renderer.sharedMaterial;
-                    var materialIndex = this.ExportMaterial(unityMaterial);
-
                     var meshFilter = gameObject.GetComponent<MeshFilter>();
                     if (meshFilter != null)
                     {
                         var unityMesh = gameObject.GetComponent<MeshFilter>().sharedMesh;
                         if (unityMesh.triangles.Any())
                         {
+                            var unityMaterial = renderer.sharedMaterial;
+                            var materialIndex = this.ExportMaterial(unityMaterial);
                             node.Mesh = this.ExportMesh(unityMesh, materialIndex);
                         }
                     }
@@ -464,9 +481,11 @@ namespace Gltf.Serialization
 
             if (info._BumpMap != null)
             {
+                var texture = this.UnpackNormals(info._BumpMap);
+
                 material.NormalTexture = new Schema.MaterialNormalTexture
                 {
-                    Index = this.ExportTexture(info._BumpMap, FormatMaterialTextureName("normal", index), true),
+                    Index = this.ExportTexture(texture, FormatMaterialTextureName("normal", index)),
                     Scale = info._BumpScale,
                 };
             }
@@ -500,7 +519,7 @@ namespace Gltf.Serialization
             return false;
         }
 
-        private int ExportTexture(Texture2D unityTexture, string imageName, bool normalMap = false)
+        private int ExportTexture(Texture2D unityTexture, string name)
         {
             int index = -1;
             if (this.objectToIndexCache.TryGetValue(unityTexture, out index))
@@ -508,14 +527,9 @@ namespace Gltf.Serialization
                 return index;
             }
 
-            if (!this.ApplyExtensions(extension => extension.ExportTexture(unityTexture, normalMap, out index)))
+            if (!this.ApplyExtensions(extension => extension.ExportTexture(unityTexture, name, out index)))
             {
-                if (normalMap)
-                {
-                    unityTexture = this.UnpackNormals(unityTexture);
-                }
-
-                var imageFormat = (TextureFormatHasAlpha(unityTexture.format) ? ImageFormat.PNG : this.imageFormat);
+                var imageFormat = (TextureFormatHasAlpha(unityTexture.format) ? ImageFormat.PNG : this.settings.ImageFormat);
                 var textureBytes = (imageFormat == ImageFormat.PNG ? unityTexture.EncodeToPNG() : unityTexture.EncodeToJPG(90));
                 var imageFormatString = imageFormat.ToString().ToLower();
 
@@ -537,7 +551,7 @@ namespace Gltf.Serialization
                 else
                 {
                     imageIndex = this.images.Count;
-                    var imageUri = string.Format("{0}_{1}.{2}", this.outputName, imageName, imageFormatString);
+                    var imageUri = string.Format("{0}_{1}.{2}", this.outputName, name, imageFormatString);
                     this.images.Add(new Schema.Image
                     {
                         Uri = imageUri,
@@ -546,23 +560,15 @@ namespace Gltf.Serialization
                     File.WriteAllBytes(Path.Combine(this.outputDirectory, imageUri), textureBytes);
                 }
 
-                if (!this.samplers.Any())
-                {
-                    this.samplers.Add(new Schema.Sampler
-                    {
-                    });
-                }
-
                 index = this.textures.Count;
                 this.textures.Add(new Schema.Texture
                 {
-                    Sampler = 0,
                     Source = imageIndex,
                 });
             }
 
             Debug.Assert(index != -1);
-            this.ApplyExtensions(extension => extension.PostExportTexture(index, unityTexture, normalMap));
+            this.ApplyExtensions(extension => extension.PostExportTexture(index, unityTexture));
 
             this.objectToIndexCache.Add(unityTexture, index);
             return index;
@@ -588,16 +594,6 @@ namespace Gltf.Serialization
                 if (unityMesh.uv2.Any())
                 {
                     attributes.Add("TEXCOORD_1", this.ExportData(InvertY(unityMesh.uv2)));
-                }
-
-                if (unityMesh.uv3.Any())
-                {
-                    attributes.Add("TEXCOORD_2", this.ExportData(InvertY(unityMesh.uv3)));
-                }
-
-                if (unityMesh.uv4.Any())
-                {
-                    attributes.Add("TEXCOORD_3", this.ExportData(InvertY(unityMesh.uv4)));
                 }
 
                 if (unityMesh.normals.Any())

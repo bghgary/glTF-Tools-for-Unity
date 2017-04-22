@@ -83,7 +83,7 @@ namespace Gltf.Serialization
 
                     Selection.gameObjects.ForEach(gameObject =>
                     {
-                        gameObject.Export(this.outputDirectory, gameObject.name, this.outputBinary, this.jsonFormatting, this.imageFormat, extensions);
+                        gameObject.Export(this.outputDirectory, gameObject.name, this.outputBinary, new ExportSettings(this.jsonFormatting, this.imageFormat, extensions));
                         Debug.LogFormat(gameObject, "[{0}] Exported {1}", DateTime.Now, gameObject.name);
                     });
 
