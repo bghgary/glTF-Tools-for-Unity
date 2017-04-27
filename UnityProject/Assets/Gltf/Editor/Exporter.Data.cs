@@ -35,7 +35,7 @@ namespace Gltf.Serialization
             return index;
         }
 
-        private int ExportAccessor(int bufferViewIndex, Schema.AccessorComponentType componentType, int count, Schema.AccessorType type, IEnumerable<object> min, IEnumerable<object> max)
+        private int ExportAccessor(int bufferViewIndex, Schema.AccessorComponentType componentType, int count, Schema.AccessorType type, IEnumerable<object> min, IEnumerable<object> max, string name = null)
         {
             int index = this.accessors.Count;
 
@@ -47,12 +47,13 @@ namespace Gltf.Serialization
                 Type = type,
                 Min = min,
                 Max = max,
+                Name = name
             });
 
             return index;
         }
 
-        private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Action<BinaryWriter> writeData)
+        private int ExportData(Schema.AccessorType type, Schema.AccessorComponentType componentType, int componentSize, int count, IEnumerable<object> min, IEnumerable<object> max, int byteLength, Action<BinaryWriter> writeData, string accessorName = null)
         {
             // The offset of the data must be aligned to a multiple of the component size.
             var position = checked((int)this.dataWriter.BaseStream.Position);
@@ -63,7 +64,7 @@ namespace Gltf.Serialization
             }
 
             var bufferViewIndex = this.ExportBufferView(0, alignedPosition, byteLength);
-            var accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max);
+            var accessorIndex = this.ExportAccessor(bufferViewIndex, componentType, count, type, min, max, accessorName);
 
             writeData(this.dataWriter);
 
@@ -109,7 +110,7 @@ namespace Gltf.Serialization
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
-        private int ExportData(IEnumerable<Vector3> values)
+        private int ExportData(IEnumerable<Vector3> values, string accessorName = null)
         {
             return this.ExportData(
                 Schema.AccessorType.VEC3,
@@ -119,7 +120,8 @@ namespace Gltf.Serialization
                 new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min() },
                 new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max() },
                 sizeof(float) * 3 * values.Count(),
-                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)),
+                accessorName);
         }
 
         private int ExportData(IEnumerable<Vector4> values)

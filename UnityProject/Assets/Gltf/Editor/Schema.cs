@@ -255,16 +255,21 @@ namespace Gltf.Schema
         public int? Indices;
         public int? Material;
         public PrimitiveMode? Mode;
+        public IEnumerable<IEnumerable<KeyValuePair<string, int>>> Targets;
 
         public bool ShouldSerializeIndices() { return this.Indices.HasValue; }
         public bool ShouldSerializeMaterial() { return this.Material.HasValue; }
         public bool ShouldSerializeMode() { return this.Mode.HasValue && this.Mode != PrimitiveMode.TRIANGLES; }
+        public bool ShouldSerializeTargets() { return this.Targets != null; }
     }
 
     [Serializable]
     public class Mesh : ChildOfRootProperty
     {
         public IEnumerable<MeshPrimitive> Primitives;
+        public IEnumerable<float> Weights;
+
+        public bool ShouldSerializeWeights() { return this.Weights != null; }
     }
 
     [Serializable]
