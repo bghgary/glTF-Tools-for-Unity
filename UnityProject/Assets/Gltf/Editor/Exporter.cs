@@ -626,7 +626,7 @@ namespace Gltf.Serialization
                 attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices)));
 
                 // Blendshapes / MorphTargets
-                var targets = new List<Schema.Target>();
+                var targets = new List<IEnumerable<KeyValuePair<string, int>>>();
                 float[] weights = new float[unityMesh.blendShapeCount];
                 for (int blendShapeIndex = 0; blendShapeIndex < unityMesh.blendShapeCount; blendShapeIndex++)
                 {
@@ -655,11 +655,14 @@ namespace Gltf.Serialization
                     Vector3[] deltaTangents = new Vector3[unityMesh.vertexCount];
                     unityMesh.GetBlendShapeFrameVertices(blendShapeIndex, frameIndex, deltaVertices, deltaNormals, deltaTangents);
 
-                    targets.Add(new Schema.Target {
-                        Normal = this.ExportData(InvertZ(deltaNormals), name),
-                        Position = this.ExportData(InvertZ(deltaVertices), name),
-                        Tangent = this.ExportData(deltaTangents, name)
-                    });
+                    var target = new Dictionary<string, int>
+                    {
+                        { "NORMAL", this.ExportData(InvertZ(deltaNormals), name) },
+                        { "POSITION", this.ExportData(InvertZ(deltaVertices), name) },
+                        { "TANGENT", this.ExportData(deltaTangents, name) }
+                    };
+
+                    targets.Add(target);
                 }
 
                 index = this.meshes.Count;
