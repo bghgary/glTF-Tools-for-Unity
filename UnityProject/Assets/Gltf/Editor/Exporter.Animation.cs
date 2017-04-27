@@ -142,7 +142,7 @@ namespace Gltf.Serialization
                 keyIndex => new Vector3(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent),
                 keyIndex => new Vector3(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value),
                 keyIndex => new Vector3(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent),
-                time => GetRightHandedPosition(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time)),
+                time => new Vector3(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time)),
                 values => this.ExportData(values));
         }
 
@@ -229,6 +229,12 @@ namespace Gltf.Serialization
                         switch (property)
                         {
                             case Property.m_LocalPosition:
+                                samplers.Add(this.ExportAnimationSamplerPosition(
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves[Member.x]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves[Member.y]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves[Member.z])));
+                                break;
+
                             case Property.m_LocalScale:
                                 samplers.Add(this.ExportAnimationSamplerScale(
                                     AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves[Member.x]),
