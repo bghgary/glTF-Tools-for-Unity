@@ -23,16 +23,6 @@ namespace Gltf.Serialization
             w,
         }
 
-        private static Vector3 GetRightHandedPosition(float x, float y, float z)
-        {
-            return new Vector3(x, y, -z);
-        }
-
-        private static Quaternion GetRightHandedRotation(float x, float y, float z, float w)
-        {
-            return new Quaternion(x, y, -z, -w);
-        }
-
         private static bool CanExportTangentModeAsSpline(AnimationUtility.TangentMode tangentMode)
         {
             switch (tangentMode)
@@ -117,10 +107,10 @@ namespace Gltf.Serialization
         {
             return this.ExportAnimationSampler(
                 new[] { curveX, curveY, curveZ },
-                keyIndex => GetRightHandedPosition(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent),
-                keyIndex => GetRightHandedPosition(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value),
-                keyIndex => GetRightHandedPosition(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent),
-                time => GetRightHandedPosition(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time)),
+                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent)),
+                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value)),
+                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent)),
+                time => GetRightHandedPosition(new Vector3(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time))),
                 values => this.ExportData(values));
         }
 
@@ -128,10 +118,10 @@ namespace Gltf.Serialization
         {
             return this.ExportAnimationSampler(
                 new[] { curveX, curveY, curveZ, curveW },
-                keyIndex => GetRightHandedRotation(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent, curveW.keys[keyIndex].inTangent),
-                keyIndex => GetRightHandedRotation(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value),
-                keyIndex => GetRightHandedRotation(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent, curveW.keys[keyIndex].outTangent),
-                time => GetRightHandedRotation(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time)),
+                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent, curveW.keys[keyIndex].inTangent)),
+                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value)),
+                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent, curveW.keys[keyIndex].outTangent)),
+                time => GetRightHandedRotation(new Quaternion(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time))),
                 values => this.ExportData(values));
         }
 

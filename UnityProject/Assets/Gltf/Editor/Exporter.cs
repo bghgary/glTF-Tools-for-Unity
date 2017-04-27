@@ -250,19 +250,6 @@ namespace Gltf.Serialization
             return (remainder == 0 ? value : checked(value + size - remainder));
         }
 
-        private static readonly Matrix4x4 InvertZMatrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(1, 1, -1));
-        private static Matrix4x4 GetRightHandedMatrix(Matrix4x4 matrix)
-        {
-            return InvertZMatrix * matrix * InvertZMatrix;
-        }
-
-        private static void DecomposeMatrix(Matrix4x4 matrix, out Vector3 position, out Quaternion rotation, out Vector3 scale)
-        {
-            position = matrix.GetColumn(3);
-            rotation = Quaternion.LookRotation(matrix.GetColumn(2), matrix.GetColumn(1));
-            scale = new Vector3(matrix.GetColumn(0).magnitude, matrix.GetColumn(1).magnitude, matrix.GetColumn(2).magnitude);
-        }
-
         private int ExportNode(GameObject gameObject)
         {
             int index;
@@ -275,11 +262,9 @@ namespace Gltf.Serialization
             {
                 var transform = gameObject.transform;
                 var children = transform.Cast<Transform>().Where(childTransform => childTransform.gameObject.activeSelf).Select(childTransform => childTransform.gameObject);
-
-                Vector3 position;
-                Quaternion rotation;
-                Vector3 scale;
-                DecomposeMatrix(GetRightHandedMatrix(transform.worldToLocalMatrix), out position, out rotation, out scale);
+                var position = GetRightHandedPosition(transform.localPosition);
+                var rotation = GetRightHandedRotation(transform.localRotation);
+                var scale = transform.localScale;
 
                 var node = new Schema.Node
                 {
@@ -666,11 +651,11 @@ namespace Gltf.Serialization
                         var deltaTangents = new Vector3[unityMesh.vertexCount];
                         unityMesh.GetBlendShapeFrameVertices(blendShapeIndex, frameIndex, deltaVertices, deltaNormals, deltaTangents);
 
-                        targets[blendShapeIndex] = new[]
+                        targets[blendShapeIndex] = new Dictionary<string, int>
                         {
-                            new KeyValuePair<string, int>("NORMAL", this.ExportData(InvertZ(deltaNormals), name)),
-                            new KeyValuePair<string, int>("POSITION", this.ExportData(InvertZ(deltaVertices), name)),
-                            new KeyValuePair<string, int>("TANGENT", this.ExportData(deltaTangents, name)),
+                            { "NORMAL", this.ExportData(InvertZ(deltaNormals), name) },
+                            { "POSITION", this.ExportData(InvertZ(deltaVertices), name) },
+                            { "TANGENT", this.ExportData(deltaTangents, name) },
                         };
 
                         // We need to get the weight from the SkinnedMeshRenderer because this represents the currently
@@ -746,6 +731,16 @@ namespace Gltf.Serialization
         private static IEnumerable<Vector4> InvertW(IEnumerable<Vector4> values)
         {
             return values.Select(value => new Vector4(value.x, value.y, value.z, -value.w));
+        }
+
+        private static Vector3 GetRightHandedPosition(Vector3 value)
+        {
+            return new Vector3(value.x, value.y, -value.z);
+        }
+
+        private static Quaternion GetRightHandedRotation(Quaternion value)
+        {
+            return new Quaternion(value.x, value.y, -value.z, -value.w);
         }
 
         private static IEnumerable<int> FlipFaces(int[] triangles)
