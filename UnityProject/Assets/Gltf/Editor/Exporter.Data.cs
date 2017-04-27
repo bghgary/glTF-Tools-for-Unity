@@ -83,6 +83,19 @@ namespace Gltf.Serialization
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
+        private int ExportData(IEnumerable<float> values)
+        {
+            return this.ExportData(
+                Schema.AccessorType.SCALAR,
+                Schema.AccessorComponentType.FLOAT,
+                sizeof(float),
+                values.Count(),
+                new object[] { values.Min() },
+                new object[] { values.Max() },
+                sizeof(float) * values.Count(),
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+        }
+
         private int ExportData(IEnumerable<Vector2> values)
         {
             return this.ExportData(
@@ -110,6 +123,19 @@ namespace Gltf.Serialization
         }
 
         private int ExportData(IEnumerable<Vector4> values)
+        {
+            return this.ExportData(
+                Schema.AccessorType.VEC4,
+                Schema.AccessorComponentType.FLOAT,
+                sizeof(float),
+                values.Count(),
+                new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min(), values.Select(value => value.w).Min() },
+                new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max(), values.Select(value => value.w).Max() },
+                sizeof(float) * 4 * values.Count(),
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+        }
+
+        private int ExportData(IEnumerable<Quaternion> values)
         {
             return this.ExportData(
                 Schema.AccessorType.VEC4,

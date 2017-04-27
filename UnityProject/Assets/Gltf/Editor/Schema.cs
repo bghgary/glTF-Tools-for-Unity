@@ -26,6 +26,32 @@ namespace Gltf.Schema
     }
 
     [Serializable]
+    public enum AlphaMode
+    {
+        OPAQUE,
+        MASK,
+        BLEND,
+    }
+
+    [Serializable]
+    public enum AnimationChannelTargetPath
+    {
+        translation,
+        rotation,
+        scale,
+        weights
+    }
+
+    [Serializable]
+    public enum AnimationSamplerInterpolation
+    {
+        LINEAR,
+        STEP,
+        CATMULLROMSPLINE,
+        CUBICSPLINE
+    }
+
+    [Serializable]
     public enum PrimitiveMode
     {
         POINTS = 0,
@@ -41,14 +67,6 @@ namespace Gltf.Schema
     {
         ARRAY_BUFFER = 34962,
         ELEMENT_ARRAY_BUFFER = 34963,
-    }
-
-    [Serializable]
-    public enum AlphaMode
-    {
-        OPAQUE,
-        MASK,
-        BLEND,
     }
 
     [Serializable]
@@ -81,6 +99,40 @@ namespace Gltf.Schema
         public bool ShouldSerializeBufferView() { return this.BufferView.HasValue; }
         public bool ShouldSerializeByteOffset() { return this.ByteOffset.HasValue && this.ByteOffset != 0; }
         public bool ShouldSerializeNormalized() { return this.Normalized; }
+    }
+
+    [Serializable]
+    public class AnimationChannelTarget : ChildOfRootProperty
+    {
+        public int Node;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AnimationChannelTargetPath Path;
+    }
+
+    [Serializable]
+    public class AnimationChannel : ChildOfRootProperty
+    {
+        public int Sampler;
+        public AnimationChannelTarget Target;
+    }
+
+    [Serializable]
+    public class AnimationSampler : ChildOfRootProperty
+    {
+        public int Input;
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public AnimationSamplerInterpolation Interpolation;
+
+        public int Output;
+    }
+
+    [Serializable]
+    public class Animation : ChildOfRootProperty
+    {
+        public IEnumerable<AnimationChannel> Channels;
+        public IEnumerable<AnimationSampler> Samplers;
     }
 
     [Serializable]
@@ -249,6 +301,7 @@ namespace Gltf.Schema
     public class Gltf
     {
         public IEnumerable<Accessor> Accessors;
+        public IEnumerable<Animation> Animations;
         public Asset Asset;
         public IEnumerable<BufferView> BufferViews;
         public IEnumerable<Buffer> Buffers;

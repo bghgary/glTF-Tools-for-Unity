@@ -93,6 +93,7 @@ namespace Gltf.Serialization
         private readonly List<Extension> extensions = new List<Extension>();
 
         private readonly List<Schema.Accessor> accessors = new List<Schema.Accessor>();
+        private readonly List<Schema.Animation> animations = new List<Schema.Animation>();
         private readonly List<Schema.Buffer> buffers = new List<Schema.Buffer>();
         private readonly List<string> extensionsUsed = new List<string>();
         private readonly List<Schema.BufferView> bufferViews = new List<Schema.BufferView>();
@@ -144,9 +145,12 @@ namespace Gltf.Serialization
                 }
             };
 
+            this.ExportAnimations(inputObjects);
+
             var gltf = new Schema.Gltf
             {
                 Accessors = this.accessors,
+                Animations = this.animations,
                 Asset = new Schema.Asset { Generator = "glTF Tools for Unity", Version = "2.0" },
                 BufferViews = this.bufferViews,
                 Buffers = this.buffers,
@@ -246,19 +250,22 @@ namespace Gltf.Serialization
             return (remainder == 0 ? value : checked(value + size - remainder));
         }
 
-        private void GetRightHandedTRS(Transform transform, out Vector3 position, out Quaternion rotation, out Vector3 scale)
+        private static readonly Matrix4x4 InvertZMatrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(1, 1, -1));
+        private static Matrix4x4 GetRightHandedMatrix(Matrix4x4 matrix)
         {
-            var invertZMatrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(1, 1, -1));
-            var transformMatrix = invertZMatrix * Matrix4x4.TRS(transform.localPosition, transform.localRotation, transform.localScale) * invertZMatrix;
+            return InvertZMatrix * matrix * InvertZMatrix;
+        }
 
-            position = transformMatrix.GetColumn(3);
-            rotation = Quaternion.LookRotation(transformMatrix.GetColumn(2), transformMatrix.GetColumn(1));
-            scale = new Vector3(transformMatrix.GetColumn(0).magnitude, transformMatrix.GetColumn(1).magnitude, transformMatrix.GetColumn(2).magnitude);
+        private static void DecomposeMatrix(Matrix4x4 matrix, out Vector3 position, out Quaternion rotation, out Vector3 scale)
+        {
+            position = matrix.GetColumn(3);
+            rotation = Quaternion.LookRotation(matrix.GetColumn(2), matrix.GetColumn(1));
+            scale = new Vector3(matrix.GetColumn(0).magnitude, matrix.GetColumn(1).magnitude, matrix.GetColumn(2).magnitude);
         }
 
         private int ExportNode(GameObject gameObject)
         {
-            int index = -1;
+            int index;
             if (this.objectToIndexCache.TryGetValue(gameObject, out index))
             {
                 return index;
@@ -272,7 +279,7 @@ namespace Gltf.Serialization
                 Vector3 position;
                 Quaternion rotation;
                 Vector3 scale;
-                GetRightHandedTRS(transform, out position, out rotation, out scale);
+                DecomposeMatrix(GetRightHandedMatrix(transform.worldToLocalMatrix), out position, out rotation, out scale);
 
                 var node = new Schema.Node
                 {
@@ -303,7 +310,6 @@ namespace Gltf.Serialization
                 this.nodes.Add(node);
             }
 
-            Debug.Assert(index != -1);
             this.ApplyExtensions(extension => extension.PostExportNode(index, gameObject));
 
             this.objectToIndexCache.Add(gameObject, index);
@@ -327,7 +333,7 @@ namespace Gltf.Serialization
 
         private int ExportMaterial(Material unityMaterial)
         {
-            int index = -1;
+            int index;
             if (this.objectToIndexCache.TryGetValue(unityMaterial, out index))
             {
                 return index;
@@ -338,7 +344,6 @@ namespace Gltf.Serialization
                 this.ExportMaterialCore(unityMaterial, true, out index);
             }
 
-            Debug.Assert(index != -1);
             this.ApplyExtensions(extension => extension.PostExportMaterial(index, unityMaterial));
 
             this.objectToIndexCache.Add(unityMaterial, index);
@@ -448,6 +453,12 @@ namespace Gltf.Serialization
             this.ExportMaterialAlpha(unityMaterial, index);
             this.ExportMaterialNormal(unityMaterial, index);
             this.ExportMaterialEmissive(unityMaterial, index);
+
+            // For now, assume MASK materials are always double-sided
+            if (material.AlphaMode == Schema.AlphaMode.MASK)
+            {
+                material.DoubleSided = true;
+            }
         }
 
         private void ExportMaterialAlpha(Material unityMaterial, int index)
@@ -521,7 +532,7 @@ namespace Gltf.Serialization
 
         private int ExportTexture(Texture2D unityTexture, string name)
         {
-            int index = -1;
+            int index;
             if (this.objectToIndexCache.TryGetValue(unityTexture, out index))
             {
                 return index;
@@ -567,7 +578,6 @@ namespace Gltf.Serialization
                 });
             }
 
-            Debug.Assert(index != -1);
             this.ApplyExtensions(extension => extension.PostExportTexture(index, unityTexture));
 
             this.objectToIndexCache.Add(unityTexture, index);
@@ -576,7 +586,7 @@ namespace Gltf.Serialization
 
         private int ExportMesh(Mesh unityMesh, int materialIndex)
         {
-            int index = -1;
+            int index;
             if (this.objectToIndexCache.TryGetValue(unityMesh, out index))
             {
                 return index;
@@ -585,6 +595,11 @@ namespace Gltf.Serialization
             if (!this.ApplyExtensions(extension => extension.ExportMesh(unityMesh, materialIndex, out index)))
             {
                 var attributes = new Dictionary<string, int>();
+
+                if (unityMesh.colors.Any())
+                {
+                    attributes.Add("COLOR_0", this.ExportData(unityMesh.colors));
+                }
 
                 if (unityMesh.uv.Any())
                 {
@@ -625,7 +640,6 @@ namespace Gltf.Serialization
                 });
             }
 
-            Debug.Assert(index != -1);
             this.ApplyExtensions(extension => extension.PostExportMesh(index, unityMesh, materialIndex));
 
             this.objectToIndexCache.Add(unityMesh, index);

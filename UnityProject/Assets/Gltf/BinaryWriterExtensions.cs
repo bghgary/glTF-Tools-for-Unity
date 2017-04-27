@@ -24,6 +24,14 @@ public static class BinaryWriterExtensions
         binaryWriter.Write(value.w);
     }
 
+    public static void Write(this BinaryWriter binaryWriter, Quaternion value)
+    {
+        binaryWriter.Write(value.x);
+        binaryWriter.Write(value.y);
+        binaryWriter.Write(value.z);
+        binaryWriter.Write(value.w);
+    }
+
     public static void Write(this BinaryWriter binaryWriter, Color value)
     {
         binaryWriter.Write(value.r);
