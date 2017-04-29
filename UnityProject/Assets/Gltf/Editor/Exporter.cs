@@ -25,12 +25,14 @@ namespace Gltf.Serialization
     {
         public Formatting JsonFormatting;
         public ImageFormat ImageFormat;
+        public bool BakeAnimations;
         public Extensions Extensions;
 
-        public ExportSettings(Formatting jsonFormatting, ImageFormat imageFormat, Extensions extensions)
+        public ExportSettings(Formatting jsonFormatting, ImageFormat imageFormat, bool bakeAnimations, Extensions extensions)
         {
             this.JsonFormatting = jsonFormatting;
             this.ImageFormat = imageFormat;
+            this.BakeAnimations = bakeAnimations;
             this.Extensions = extensions;
         }
 
@@ -38,6 +40,7 @@ namespace Gltf.Serialization
         {
             JsonFormatting = Formatting.Indented,
             ImageFormat = ImageFormat.PNG,
+            BakeAnimations = false,
             Extensions = Extensions.None,
         };
     }
