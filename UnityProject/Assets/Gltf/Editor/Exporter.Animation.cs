@@ -134,10 +134,10 @@ namespace Gltf.Serialization
         {
             return this.ExportAnimationSampler(
                 weightCurves,
-                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].inTangent),
-                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].value),
-                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].outTangent),
-                time => weightCurves.Select(curve => curve.Evaluate(time)),
+                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].inTangent / 100),
+                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].value / 100),
+                keyIndex => weightCurves.Select(curve => curve.keys[keyIndex].outTangent / 100),
+                time => weightCurves.Select(curve => curve.Evaluate(time) / 100),
                 values => this.ExportData(values.SelectMany(value => value)));
         }
 
