@@ -743,7 +743,7 @@ namespace Gltf.Serialization
 
         private static Quaternion GetRightHandedRotation(Quaternion value)
         {
-            return new Quaternion(value.x, value.y, -value.z, -value.w);
+            return new Quaternion(-value.x, -value.y, value.z, value.w);
         }
 
         private static IEnumerable<int> FlipFaces(int[] triangles)
