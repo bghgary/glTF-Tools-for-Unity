@@ -281,7 +281,7 @@ namespace Gltf.Schema
         public IEnumerable<float> Scale;
         public IEnumerable<float> Translation;
 
-        public bool ShouldSerializeChildren() { return this.Children != null; }
+        public bool ShouldSerializeChildren() { return this.Children != null && this.Children.Any(); }
         public bool ShouldSerializeMesh() { return this.Mesh.HasValue; }
         public bool ShouldSerializeRotation() { return this.Rotation != null && !this.Rotation.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f, 1.0f }); }
         public bool ShouldSerializeScale() { return this.Scale != null && !this.Scale.SequenceEqual(new[] { 1.0f, 1.0f, 1.0f }); }
@@ -320,6 +320,7 @@ namespace Gltf.Schema
         public IEnumerable<Texture> Textures;
 
         public bool ShouldSerializeAccessors() { return this.Accessors != null && this.Accessors.Any(); }
+        public bool ShouldSerializeAnimations() { return this.Animations != null && this.Animations.Any(); }
         public bool ShouldSerializeBufferViews() { return this.BufferViews != null && this.BufferViews.Any(); }
         public bool ShouldSerializeExtensionsUsed() { return this.ExtensionsUsed != null && this.ExtensionsUsed.Any(); }
         public bool ShouldSerializeImages() { return this.Images != null && this.Images.Any(); }
