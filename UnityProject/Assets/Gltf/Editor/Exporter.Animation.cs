@@ -144,26 +144,26 @@ namespace Gltf.Serialization
         /// <summary>
         /// Groups the editor curve bindings into path/property/member buckets.
         /// </summary>
-        private Dictionary<string, Dictionary<string, OrderedDictionary>> GroupAnimationCurveBindings(IEnumerable<EditorCurveBinding> editorCurveBindings)
+        private Dictionary<string, Dictionary<string, Dictionary<string, EditorCurveBinding>>> GroupAnimationCurveBindings(IEnumerable<EditorCurveBinding> editorCurveBindings)
         {
-            var bindings = new Dictionary<string, Dictionary<string, OrderedDictionary>>();
+            var bindings = new Dictionary<string, Dictionary<string, Dictionary<string, EditorCurveBinding>>>();
 
             foreach (var editorCurveBinding in editorCurveBindings)
             {
-                Dictionary<string, OrderedDictionary> propertyBindings;
+                Dictionary<string, Dictionary<string, EditorCurveBinding>> propertyBindings;
                 if (!bindings.TryGetValue(editorCurveBinding.path, out propertyBindings))
                 {
-                    propertyBindings = new Dictionary<string, OrderedDictionary>();
+                    propertyBindings = new Dictionary<string, Dictionary<string, EditorCurveBinding>>();
                     bindings.Add(editorCurveBinding.path, propertyBindings);
                 }
 
                 var split = editorCurveBinding.propertyName.Split('.');
                 var property = split[0];
 
-                OrderedDictionary memberBindings;
+                Dictionary<string, EditorCurveBinding> memberBindings;
                 if (!propertyBindings.TryGetValue(property, out memberBindings))
                 {
-                    memberBindings = new OrderedDictionary();
+                    memberBindings = new Dictionary<string, EditorCurveBinding>();
                     propertyBindings.Add(property, memberBindings);
                 }
 
@@ -210,13 +210,14 @@ namespace Gltf.Serialization
                     {
                         var property = (Property)Enum.Parse(typeof(Property), kvpProperty.Key);
                         var memberCurves = kvpProperty.Value;
+                        var targetGameObject = gameObject.transform.Find(path).gameObject;
 
                         channels.Add(new Schema.AnimationChannel
                         {
                             Sampler = samplers.Count,
                             Target = new Schema.AnimationChannelTarget
                             {
-                                Node = this.objectToIndexCache[gameObject.transform.Find(path).gameObject],
+                                Node = this.objectToIndexCache[targetGameObject],
                                 Path = (Schema.AnimationChannelTargetPath)property,
                             }
                         });
@@ -225,28 +226,45 @@ namespace Gltf.Serialization
                         {
                             case Property.m_LocalPosition:
                                 samplers.Add(this.ExportAnimationSamplerPosition(
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["x"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["y"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["z"])));
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["x"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["y"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["z"])));
                                 break;
 
                             case Property.m_LocalScale:
                                 samplers.Add(this.ExportAnimationSamplerScale(
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["x"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["y"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["z"])));
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["x"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["y"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["z"])));
                                 break;
 
                             case Property.m_LocalRotation:
                                 samplers.Add(this.ExportAnimationSamplerRotation(
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["x"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["y"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["z"]),
-                                    AnimationUtility.GetEditorCurve(unityAnimationClip, (EditorCurveBinding)memberCurves["w"])));
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["x"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["y"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["z"]),
+                                    AnimationUtility.GetEditorCurve(unityAnimationClip, memberCurves["w"])));
                                 break;
 
                             case Property.blendShape:
-                                var weightCurves = memberCurves.Values.Cast<EditorCurveBinding>().Select(binding => AnimationUtility.GetEditorCurve(unityAnimationClip, binding));
+                                var skinnedMeshRenderer = targetGameObject.GetComponent<SkinnedMeshRenderer>();
+                                var sharedMesh = skinnedMeshRenderer.sharedMesh;
+                                var weightCurves = new AnimationCurve[sharedMesh.blendShapeCount];
+                                for (var i = 0; i < sharedMesh.blendShapeCount; i++)
+                                {
+                                    var blendShapeName = sharedMesh.GetBlendShapeName(i);
+
+                                    EditorCurveBinding binding;
+                                    if (memberCurves.TryGetValue(blendShapeName, out binding))
+                                    {
+                                        weightCurves[i] = AnimationUtility.GetEditorCurve(unityAnimationClip, binding);
+                                    }
+                                    else
+                                    {
+                                        var blendShapeWeight = skinnedMeshRenderer.GetBlendShapeWeight(i);
+                                        weightCurves[i] = AnimationCurve.Linear(0, blendShapeWeight, unityAnimationClip.length, blendShapeWeight);
+                                    }
+                                }
                                 samplers.Add(this.ExportAnimationSamplerWeights(weightCurves));
                                 break;
 
