@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
 
 namespace Gltf.Serialization
@@ -30,6 +30,7 @@ namespace Gltf.Serialization
             return false;
         }
 
+        // TODO: ideally new keys should be inserted instead of checking if it can be exported
         private static bool CanExportCurvesAsSpline(IEnumerable<AnimationCurve> curves)
         {
             var firstCurve = curves.First();
@@ -157,7 +158,7 @@ namespace Gltf.Serialization
                     bindings.Add(editorCurveBinding.path, propertyBindings);
                 }
 
-                var split = editorCurveBinding.propertyName.Split('.');
+                var split = editorCurveBinding.propertyName.Split(new[] { '.' }, 2);
                 var property = split[0];
 
                 Dictionary<string, EditorCurveBinding> memberBindings;
@@ -172,20 +173,6 @@ namespace Gltf.Serialization
             }
 
             return bindings;
-        }
-
-        private void ExportAnimations(IEnumerable<GameObject> gameObjects)
-        {
-            foreach (var gameObject in gameObjects)
-            {
-                foreach (var animation in gameObject.GetComponentsInChildren<Animation>())
-                {
-                    foreach (AnimationState animationState in animation)
-                    {
-                        this.ExportAnimation(gameObject, animationState.clip);
-                    }
-                }
-            }
         }
 
         private int ExportAnimation(GameObject gameObject, AnimationClip unityAnimationClip)
@@ -287,6 +274,33 @@ namespace Gltf.Serialization
 
             this.objectToIndexCache.Add(unityAnimationClip, index);
             return index;
+        }
+
+        private void ExportAnimations(IEnumerable<GameObject> gameObjects)
+        {
+            foreach (var gameObject in gameObjects)
+            {
+                foreach (var animator in gameObject.GetComponentsInChildren<Animator>())
+                {
+                    var animatorController = (AnimatorController)animator.runtimeAnimatorController;
+                    foreach (var layer in animatorController.layers)
+                    {
+                        foreach (var state in layer.stateMachine.states.Select(childState => childState.state))
+                        {
+                            if (state.motion is BlendTree)
+                            {
+                                throw new NotSupportedException();
+                            }
+
+                            var animationClip = (AnimationClip)state.motion;
+                            if (animationClip != null)
+                            {
+                                this.ExportAnimation(gameObject, animationClip);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
