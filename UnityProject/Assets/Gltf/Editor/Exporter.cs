@@ -104,6 +104,7 @@ namespace Gltf.Serialization
         private readonly List<Schema.Mesh> meshes = new List<Schema.Mesh>();
         private readonly List<Schema.Material> materials = new List<Schema.Material>();
         private readonly List<Schema.Node> nodes = new List<Schema.Node>();
+        private readonly List<Schema.Skin> skins = new List<Schema.Skin>();
         private readonly List<Schema.Texture> textures = new List<Schema.Texture>();
 
         public Exporter()
@@ -131,6 +132,7 @@ namespace Gltf.Serialization
             this.meshes.Clear();
             this.materials.Clear();
             this.nodes.Clear();
+            this.skins.Clear();
             this.textures.Clear();
 
             Directory.CreateDirectory(this.outputDirectory);
@@ -149,6 +151,7 @@ namespace Gltf.Serialization
             };
 
             this.ExportAnimations(inputObjects);
+            this.ExportSkins(inputObjects);
 
             var gltf = new Schema.Gltf
             {
@@ -164,6 +167,7 @@ namespace Gltf.Serialization
                 Nodes = this.nodes,
                 Scene = 0,
                 Scenes = scenes,
+                Skins = this.skins,
                 Textures = this.textures,
             };
 
@@ -605,17 +609,17 @@ namespace Gltf.Serialization
 
                 if (unityMesh.colors.Any())
                 {
-                    attributes.Add("COLOR_0", this.ExportData(unityMesh.colors));
+                    attributes.Add("COLOR_0", this.ExportColors(unityMesh.colors));
                 }
 
                 if (unityMesh.uv.Any())
                 {
-                    attributes.Add("TEXCOORD_0", this.ExportData(InvertY(unityMesh.uv)));
+                    attributes.Add("TEXCOORD_0", this.ExportData(FlipV(unityMesh.uv)));
                 }
 
                 if (unityMesh.uv2.Any())
                 {
-                    attributes.Add("TEXCOORD_1", this.ExportData(InvertY(unityMesh.uv2)));
+                    attributes.Add("TEXCOORD_1", this.ExportData(FlipV(unityMesh.uv2)));
                 }
 
                 if (unityMesh.normals.Any())
@@ -628,7 +632,25 @@ namespace Gltf.Serialization
                     attributes.Add("TANGENT", this.ExportData(InvertW(unityMesh.tangents)));
                 }
 
-                attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices)));
+                if (unityMesh.vertices.Any())
+                {
+                    attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices), true));
+                }
+
+                if (unityMesh.boneWeights.Any())
+                {
+                    if (unityMesh.boneWeights.Any(bw => bw.boneIndex0 >= ushort.MaxValue || bw.boneIndex1 >= ushort.MaxValue || bw.boneIndex2 >= ushort.MaxValue || bw.boneIndex3 >= ushort.MaxValue))
+                    {
+                        throw new NotSupportedException();
+                    }
+
+                    attributes.Add("JOINTS_0",
+                        unityMesh.boneWeights.Any(bw => bw.boneIndex0 >= byte.MaxValue || bw.boneIndex1 >= byte.MaxValue || bw.boneIndex2 >= byte.MaxValue || bw.boneIndex3 >= byte.MaxValue)
+                        ? this.ExportData(unityMesh.boneWeights.Select(bw => new UShortVector4((ushort)bw.boneIndex0, (ushort)bw.boneIndex1, (ushort)bw.boneIndex2, (ushort)bw.boneIndex3)))
+                        : this.ExportData(unityMesh.boneWeights.Select(bw => new ByteVector4((byte)bw.boneIndex0, (byte)bw.boneIndex1, (byte)bw.boneIndex2, (byte)bw.boneIndex3))));
+
+                    attributes.Add("WEIGHTS_0", this.ExportData(unityMesh.boneWeights.Select(bw => new Vector4(bw.weight0, bw.weight1, bw.weight2, bw.weight3))));
+                }
 
                 // Blend Shapes / Morph Targets
                 IEnumerable<KeyValuePair<string, int>>[] targets = null;
@@ -656,9 +678,9 @@ namespace Gltf.Serialization
 
                         targets[blendShapeIndex] = new Dictionary<string, int>
                         {
-                            { "NORMAL", this.ExportData(InvertZ(deltaNormals), name) },
-                            { "POSITION", this.ExportData(InvertZ(deltaVertices), name) },
-                            { "TANGENT", this.ExportData(deltaTangents, name) },
+                            { "NORMAL", this.ExportData(InvertZ(deltaNormals), false, name) },
+                            { "POSITION", this.ExportData(InvertZ(deltaVertices), false, name) },
+                            { "TANGENT", this.ExportData(deltaTangents, false, name) },
                         };
 
                         // We need to get the weight from the SkinnedMeshRenderer because this represents the currently
@@ -721,9 +743,9 @@ namespace Gltf.Serialization
             }
         }
 
-        private static IEnumerable<Vector2> InvertY(IEnumerable<Vector2> values)
+        private static IEnumerable<Vector2> FlipV(IEnumerable<Vector2> values)
         {
-            return values.Select(value => new Vector2(value.x, -value.y));
+            return values.Select(value => new Vector2(value.x, 1.0f - value.y));
         }
 
         private static IEnumerable<Vector3> InvertZ(IEnumerable<Vector3> values)

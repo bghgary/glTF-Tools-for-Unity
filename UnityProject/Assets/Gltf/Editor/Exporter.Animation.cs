@@ -73,7 +73,7 @@ namespace Gltf.Serialization
 
                 return new Schema.AnimationSampler
                 {
-                    Input = this.ExportData(input),
+                    Input = this.ExportData(input, minMax: true),
                     Interpolation = Schema.AnimationSamplerInterpolation.CUBICSPLINE,
                     Output = exportData(output),
                 };
@@ -91,7 +91,7 @@ namespace Gltf.Serialization
 
                 return new Schema.AnimationSampler
                 {
-                    Input = this.ExportData(input),
+                    Input = this.ExportData(input, minMax: true),
                     Interpolation = Schema.AnimationSamplerInterpolation.LINEAR,
                     Output = exportData(output),
                 };
@@ -131,7 +131,7 @@ namespace Gltf.Serialization
                 values => this.ExportData(values));
         }
 
-        private Schema.AnimationSampler ExportAnimationSamplerWeights(IEnumerable<AnimationCurve> weightCurves)
+        private Schema.AnimationSampler ExportAnimationSamplerWeight(IEnumerable<AnimationCurve> weightCurves)
         {
             return this.ExportAnimationSampler(
                 weightCurves,
@@ -252,7 +252,7 @@ namespace Gltf.Serialization
                                         weightCurves[i] = AnimationCurve.Linear(0, blendShapeWeight, unityAnimationClip.length, blendShapeWeight);
                                     }
                                 }
-                                samplers.Add(this.ExportAnimationSamplerWeights(weightCurves));
+                                samplers.Add(this.ExportAnimationSamplerWeight(weightCurves));
                                 break;
 
                             default:
@@ -283,6 +283,11 @@ namespace Gltf.Serialization
                 foreach (var animator in gameObject.GetComponentsInChildren<Animator>())
                 {
                     var animatorController = (AnimatorController)animator.runtimeAnimatorController;
+                    if (animatorController == null)
+                    {
+                        continue;
+                    }
+
                     foreach (var layer in animatorController.layers)
                     {
                         foreach (var state in layer.stateMachine.states.Select(childState => childState.state))

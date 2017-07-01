@@ -78,21 +78,21 @@ namespace Gltf.Serialization
                 Schema.AccessorComponentType.UNSIGNED_SHORT,
                 sizeof(ushort),
                 values.Count(),
-                new object[] { values.Min() },
-                new object[] { values.Max() },
+                null,
+                null,
                 sizeof(ushort) * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
-        private int ExportData(IEnumerable<float> values)
+        private int ExportData(IEnumerable<float> values, bool minMax = false)
         {
             return this.ExportData(
                 Schema.AccessorType.SCALAR,
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Min() },
-                new object[] { values.Max() },
+                minMax ? new object[] { values.Min() } : null,
+                minMax ? new object[] { values.Max() } : null,
                 sizeof(float) * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
@@ -104,21 +104,21 @@ namespace Gltf.Serialization
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min() },
-                new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max() },
+                null,
+                null,
                 sizeof(float) * 2 * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
-        private int ExportData(IEnumerable<Vector3> values, string accessorName = null)
+        private int ExportData(IEnumerable<Vector3> values, bool minMax = false, string accessorName = null)
         {
             return this.ExportData(
                 Schema.AccessorType.VEC3,
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min() },
-                new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max() },
+                minMax ? new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min() } : null,
+                minMax ? new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max() } : null,
                 sizeof(float) * 3 * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)),
                 accessorName);
@@ -131,8 +131,8 @@ namespace Gltf.Serialization
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min(), values.Select(value => value.w).Min() },
-                new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max(), values.Select(value => value.w).Max() },
+                null,
+                null,
                 sizeof(float) * 4 * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
@@ -144,22 +144,61 @@ namespace Gltf.Serialization
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Select(value => value.x).Min(), values.Select(value => value.y).Min(), values.Select(value => value.z).Min(), values.Select(value => value.w).Min() },
-                new object[] { values.Select(value => value.x).Max(), values.Select(value => value.y).Max(), values.Select(value => value.z).Max(), values.Select(value => value.w).Max() },
+                null,
+                null,
                 sizeof(float) * 4 * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
 
-        private int ExportData(IEnumerable<Color> values)
+        private int ExportColors(IEnumerable<Color> values)
         {
             return this.ExportData(
                 Schema.AccessorType.VEC4,
                 Schema.AccessorComponentType.FLOAT,
                 sizeof(float),
                 values.Count(),
-                new object[] { values.Select(value => value.r).Min(), values.Select(value => value.g).Min(), values.Select(value => value.b).Min(), values.Select(value => value.a).Min() },
-                new object[] { values.Select(value => value.r).Max(), values.Select(value => value.g).Max(), values.Select(value => value.b).Max(), values.Select(value => value.a).Max() },
+                null,
+                null,
                 sizeof(float) * 4 * values.Count(),
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+        }
+
+        private int ExportData(IEnumerable<ByteVector4> values)
+        {
+            return this.ExportData(
+                Schema.AccessorType.VEC4,
+                Schema.AccessorComponentType.UNSIGNED_BYTE,
+                sizeof(byte),
+                values.Count(),
+                null,
+                null,
+                sizeof(byte) * 4 * values.Count(),
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+        }
+
+        private int ExportData(IEnumerable<UShortVector4> values)
+        {
+            return this.ExportData(
+                Schema.AccessorType.VEC4,
+                Schema.AccessorComponentType.UNSIGNED_SHORT,
+                sizeof(ushort),
+                values.Count(),
+                null,
+                null,
+                sizeof(ushort) * 4 * values.Count(),
+                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+        }
+
+        private int ExportData(IEnumerable<Matrix4x4> values)
+        {
+            return this.ExportData(
+                Schema.AccessorType.MAT4,
+                Schema.AccessorComponentType.FLOAT,
+                sizeof(float),
+                values.Count(),
+                null,
+                null,
+                sizeof(float) * 16 * values.Count(),
                 binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
         }
     }

@@ -13,6 +13,9 @@ namespace Gltf.Schema
         VEC2,
         VEC3,
         VEC4,
+        MAT2,
+        MAT3,
+        MAT4,
     }
 
     [Serializable]
@@ -99,6 +102,8 @@ namespace Gltf.Schema
         public bool ShouldSerializeBufferView() { return this.BufferView.HasValue; }
         public bool ShouldSerializeByteOffset() { return this.ByteOffset.HasValue && this.ByteOffset != 0; }
         public bool ShouldSerializeNormalized() { return this.Normalized; }
+        public bool ShouldSerializeMax() { return this.Max != null && this.Max.Any(); }
+        public bool ShouldSerializeMin() { return this.Min != null && this.Min.Any(); }
     }
 
     [Serializable]
@@ -276,22 +281,45 @@ namespace Gltf.Schema
     public class Node : ChildOfRootProperty
     {
         public IEnumerable<int> Children;
+        public int? Skin;
         public int? Mesh;
         public IEnumerable<float> Rotation;
         public IEnumerable<float> Scale;
         public IEnumerable<float> Translation;
+        public IEnumerable<float> Matrix;
+
+        private static class Defaults
+        {
+            public static float[] Rotation = new[] { 0.0f, 0.0f, 0.0f, 1.0f };
+            public static float[] Scale = new[] { 1.0f, 1.0f, 1.0f };
+            public static float[] Translation = new[] { 0.0f, 0.0f, 0.0f };
+            public static float[] Matrix = new[] { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+        }
 
         public bool ShouldSerializeChildren() { return this.Children != null && this.Children.Any(); }
+        public bool ShouldSerializeSkin() { return this.Skin.HasValue; }
         public bool ShouldSerializeMesh() { return this.Mesh.HasValue; }
-        public bool ShouldSerializeRotation() { return this.Rotation != null && !this.Rotation.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f, 1.0f }); }
-        public bool ShouldSerializeScale() { return this.Scale != null && !this.Scale.SequenceEqual(new[] { 1.0f, 1.0f, 1.0f }); }
-        public bool ShouldSerializeTranslation() { return this.Translation != null && !this.Translation.SequenceEqual(new[] { 0.0f, 0.0f, 0.0f }); }
+        public bool ShouldSerializeRotation() { return this.Rotation != null && !this.Rotation.SequenceEqual(Defaults.Rotation); }
+        public bool ShouldSerializeScale() { return this.Scale != null && !this.Scale.SequenceEqual(Defaults.Scale); }
+        public bool ShouldSerializeTranslation() { return this.Translation != null && !this.Translation.SequenceEqual(Defaults.Translation); }
+        public bool ShouldSerializeMatrix() { return this.Matrix != null && !this.Matrix.SequenceEqual(Defaults.Matrix); }
     }
 
     [Serializable]
     public class Scene : ChildOfRootProperty
     {
         public IEnumerable<int> Nodes;
+    }
+
+    [Serializable]
+    public class Skin : ChildOfRootProperty
+    {
+        public int? InverseBindMatrices;
+        public int? Skeleton;
+        public IEnumerable<int> Joints;
+
+        public bool ShouldSerializeInverseBindMatrices() { return this.InverseBindMatrices.HasValue; }
+        public bool ShouldSerializeSkeleton() { return this.Skeleton.HasValue; }
     }
 
     [Serializable]
@@ -317,6 +345,7 @@ namespace Gltf.Schema
         public IEnumerable<Node> Nodes;
         public int? Scene;
         public IEnumerable<Scene> Scenes;
+        public IEnumerable<Skin> Skins;
         public IEnumerable<Texture> Textures;
 
         public bool ShouldSerializeAccessors() { return this.Accessors != null && this.Accessors.Any(); }
@@ -329,6 +358,7 @@ namespace Gltf.Schema
         public bool ShouldSerializeNodes() { return this.Nodes != null && this.Nodes.Any(); }
         public bool ShouldSerializeScene() { return this.Scene.HasValue; }
         public bool ShouldSerializeScenes() { return this.Scenes != null && this.Scenes.Any(); }
+        public bool ShouldSerializeSkins() { return this.Skins != null && this.Skins.Any(); }
         public bool ShouldSerializeTextures() { return this.Textures != null && this.Textures.Any(); }
     }
 }
