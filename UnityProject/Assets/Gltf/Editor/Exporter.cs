@@ -271,8 +271,8 @@ namespace Gltf.Serialization
             {
                 var transform = gameObject.transform;
                 var children = transform.Cast<Transform>().Where(childTransform => childTransform.gameObject.activeSelf).Select(childTransform => childTransform.gameObject);
-                var position = GetRightHandedPosition(transform.localPosition);
-                var rotation = GetRightHandedRotation(transform.localRotation);
+                var position = GetRightHandedVector(transform.localPosition);
+                var rotation = GetRightHandedQuaternion(transform.localRotation);
                 var scale = transform.localScale;
 
                 var node = new Schema.Node
@@ -626,17 +626,17 @@ namespace Gltf.Serialization
 
                 if (unityMesh.normals.Any())
                 {
-                    attributes.Add("NORMAL", this.ExportData(unityMesh.normals.Select(value => GetRightHandedDirection(value))));
+                    attributes.Add("NORMAL", this.ExportData(unityMesh.normals.Select(value => GetRightHandedVector(value))));
                 }
 
                 if (unityMesh.tangents.Any())
                 {
-                    attributes.Add("TANGENT", this.ExportData(unityMesh.tangents.Select(value => GetRightHandedTangent(value))));
+                    attributes.Add("TANGENT", this.ExportData(unityMesh.tangents.Select(value => GetRightHandedVector(value))));
                 }
 
                 if (unityMesh.vertices.Any())
                 {
-                    attributes.Add("POSITION", this.ExportData(unityMesh.vertices.Select(value => GetRightHandedPosition(value)), true));
+                    attributes.Add("POSITION", this.ExportData(unityMesh.vertices.Select(value => GetRightHandedVector(value)), true));
                 }
 
                 if (unityMesh.boneWeights.Any())
@@ -680,9 +680,9 @@ namespace Gltf.Serialization
 
                         targets[blendShapeIndex] = new Dictionary<string, int>
                         {
-                            { "NORMAL", this.ExportData(InvertZ(deltaNormals), false, name) },
-                            { "POSITION", this.ExportData(InvertZ(deltaVertices), false, name) },
-                            { "TANGENT", this.ExportData(deltaTangents, false, name) },
+                            { "NORMAL", this.ExportData(deltaNormals.Select(value => GetRightHandedVector(value)), false, name) },
+                            { "POSITION", this.ExportData(deltaVertices.Select(value => GetRightHandedVector(value)), false, name) },
+                            { "TANGENT", this.ExportData(deltaTangents.Select(value => GetRightHandedVector(value)), false, name) },
                         };
 
                         // We need to get the weight from the SkinnedMeshRenderer because this represents the currently
@@ -750,24 +750,19 @@ namespace Gltf.Serialization
             return new Vector2(value.x, 1.0f - value.y);
         }
 
-        private static Vector3 GetRightHandedPosition(Vector3 value)
+        private static Vector3 GetRightHandedVector(Vector3 value)
         {
             return new Vector3(value.x, value.y, -value.z);
         }
 
-        private static Vector3 GetRightHandedDirection(Vector3 value)
-        {
-            return new Vector3(value.x, value.y, -value.z);
-        }
-
-        private static Quaternion GetRightHandedRotation(Quaternion value)
-        {
-            return new Quaternion(-value.x, -value.y, value.z, value.w);
-        }
-
-        private static Vector4 GetRightHandedTangent(Vector4 value)
+        private static Vector4 GetRightHandedVector(Vector4 value)
         {
             return new Vector4(value.x, value.y, -value.z, -value.w);
+        }
+
+        private static Quaternion GetRightHandedQuaternion(Quaternion value)
+        {
+            return new Quaternion(-value.x, -value.y, value.z, value.w);
         }
 
         private static IEnumerable<int> FlipFaces(int[] triangles)

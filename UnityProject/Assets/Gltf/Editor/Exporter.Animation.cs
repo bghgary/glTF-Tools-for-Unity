@@ -102,10 +102,10 @@ namespace Gltf.Serialization
         {
             return this.ExportAnimationSampler(
                 new[] { curveX, curveY, curveZ },
-                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent)),
-                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value)),
-                keyIndex => GetRightHandedPosition(new Vector3(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent)),
-                time => GetRightHandedPosition(new Vector3(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time))),
+                keyIndex => GetRightHandedVector(new Vector3(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent)),
+                keyIndex => GetRightHandedVector(new Vector3(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value)),
+                keyIndex => GetRightHandedVector(new Vector3(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent)),
+                time => GetRightHandedVector(new Vector3(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time))),
                 values => this.ExportData(values));
         }
 
@@ -113,10 +113,10 @@ namespace Gltf.Serialization
         {
             return this.ExportAnimationSampler(
                 new[] { curveX, curveY, curveZ, curveW },
-                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent, curveW.keys[keyIndex].inTangent)),
-                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value)),
-                keyIndex => GetRightHandedRotation(new Quaternion(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent, curveW.keys[keyIndex].outTangent)),
-                time => GetRightHandedRotation(new Quaternion(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time))),
+                keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent, curveW.keys[keyIndex].inTangent)),
+                keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value)),
+                keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent, curveW.keys[keyIndex].outTangent)),
+                time => GetRightHandedQuaternion(new Quaternion(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time))),
                 values => this.ExportData(values));
         }
 
