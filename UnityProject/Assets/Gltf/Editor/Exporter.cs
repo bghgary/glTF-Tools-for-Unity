@@ -151,7 +151,9 @@ namespace Gltf.Serialization
             };
 
             this.ExportAnimations(inputObjects);
-            this.ExportSkins(inputObjects);
+
+            // Disable for now
+            //this.ExportSkins(inputObjects);
 
             var gltf = new Schema.Gltf
             {
