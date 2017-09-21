@@ -614,27 +614,27 @@ namespace Gltf.Serialization
 
                 if (unityMesh.uv.Any())
                 {
-                    attributes.Add("TEXCOORD_0", this.ExportData(FlipV(unityMesh.uv)));
+                    attributes.Add("TEXCOORD_0", this.ExportData(unityMesh.uv.Select(value => FlipV(value))));
                 }
 
                 if (unityMesh.uv2.Any())
                 {
-                    attributes.Add("TEXCOORD_1", this.ExportData(FlipV(unityMesh.uv2)));
+                    attributes.Add("TEXCOORD_1", this.ExportData(unityMesh.uv2.Select(value => FlipV(value))));
                 }
 
                 if (unityMesh.normals.Any())
                 {
-                    attributes.Add("NORMAL", this.ExportData(InvertZ(unityMesh.normals)));
+                    attributes.Add("NORMAL", this.ExportData(unityMesh.normals.Select(value => GetRightHandedDirection(value))));
                 }
 
                 if (unityMesh.tangents.Any())
                 {
-                    attributes.Add("TANGENT", this.ExportData(InvertW(unityMesh.tangents)));
+                    attributes.Add("TANGENT", this.ExportData(unityMesh.tangents.Select(value => GetRightHandedTangent(value))));
                 }
 
                 if (unityMesh.vertices.Any())
                 {
-                    attributes.Add("POSITION", this.ExportData(InvertZ(unityMesh.vertices), true));
+                    attributes.Add("POSITION", this.ExportData(unityMesh.vertices.Select(value => GetRightHandedPosition(value)), true));
                 }
 
                 if (unityMesh.boneWeights.Any())
@@ -743,19 +743,9 @@ namespace Gltf.Serialization
             }
         }
 
-        private static IEnumerable<Vector2> FlipV(IEnumerable<Vector2> values)
+        private static Vector2 FlipV(Vector2 value)
         {
-            return values.Select(value => new Vector2(value.x, 1.0f - value.y));
-        }
-
-        private static IEnumerable<Vector3> InvertZ(IEnumerable<Vector3> values)
-        {
-            return values.Select(value => new Vector3(value.x, value.y, -value.z));
-        }
-
-        private static IEnumerable<Vector4> InvertW(IEnumerable<Vector4> values)
-        {
-            return values.Select(value => new Vector4(value.x, value.y, value.z, -value.w));
+            return new Vector2(value.x, 1.0f - value.y);
         }
 
         private static Vector3 GetRightHandedPosition(Vector3 value)
@@ -763,9 +753,19 @@ namespace Gltf.Serialization
             return new Vector3(value.x, value.y, -value.z);
         }
 
+        private static Vector3 GetRightHandedDirection(Vector3 value)
+        {
+            return new Vector3(value.x, value.y, -value.z);
+        }
+
         private static Quaternion GetRightHandedRotation(Quaternion value)
         {
             return new Quaternion(-value.x, -value.y, value.z, value.w);
+        }
+
+        private static Vector4 GetRightHandedTangent(Vector4 value)
+        {
+            return new Vector4(value.x, value.y, -value.z, -value.w);
         }
 
         private static IEnumerable<int> FlipFaces(int[] triangles)
