@@ -259,7 +259,8 @@ namespace Gltf.Serialization
             return (remainder == 0 ? value : checked(value + size - remainder));
         }
 
-        private int ExportNode(GameObject gameObject)
+        private readonly static Quaternion Rotate180Y = new Quaternion(0, 1, 0, 0);
+        private int ExportNode(GameObject gameObject, GameObject parentGameObject = null)
         {
             int index;
             if (this.objectToIndexCache.TryGetValue(gameObject, out index))
@@ -275,10 +276,17 @@ namespace Gltf.Serialization
                 var rotation = GetRightHandedQuaternion(transform.localRotation);
                 var scale = transform.localScale;
 
+                if (!parentGameObject)
+                {
+                    position.x = -position.x;
+                    position.z = -position.z;
+                    rotation = Rotate180Y * rotation;
+                }
+
                 var node = new Schema.Node
                 {
                     Name = gameObject.name,
-                    Children = children.Select(child => this.ExportNode(child)).ToArray(),
+                    Children = children.Select(child => this.ExportNode(child, gameObject)).ToArray(),
                     Translation = new[] { position.x, position.y, position.z },
                     Rotation = new[] { rotation.x, rotation.y, rotation.z, rotation.w },
                     Scale = new[] { scale.x, scale.y, scale.z },
@@ -681,7 +689,7 @@ namespace Gltf.Serialization
                         targets[blendShapeIndex] = new Dictionary<string, int>
                         {
                             { "NORMAL", this.ExportData(deltaNormals.Select(value => GetRightHandedVector(value)), false, name) },
-                            { "POSITION", this.ExportData(deltaVertices.Select(value => GetRightHandedVector(value)), false, name) },
+                            { "POSITION", this.ExportData(deltaVertices.Select(value => GetRightHandedVector(value)), true, name) },
                             { "TANGENT", this.ExportData(deltaTangents.Select(value => GetRightHandedVector(value)), false, name) },
                         };
 
