@@ -152,15 +152,30 @@ namespace Gltf.Serialization
 
         private int ExportColors(IEnumerable<Color> values)
         {
-            return this.ExportData(
-                Schema.AccessorType.VEC4,
-                Schema.AccessorComponentType.FLOAT,
-                sizeof(float),
-                values.Count(),
-                null,
-                null,
-                sizeof(float) * 4 * values.Count(),
-                binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+            if (values.All(color => color.a == 1.0f))
+            {
+                return this.ExportData(
+                    Schema.AccessorType.VEC3,
+                    Schema.AccessorComponentType.FLOAT,
+                    sizeof(float),
+                    values.Count(),
+                    null,
+                    null,
+                    sizeof(float) * 3 * values.Count(),
+                    binaryWriter => values.Select(value => (Vector3)(Vector4)value).ForEach(value => binaryWriter.Write(value)));
+            }
+            else
+            {
+                return this.ExportData(
+                    Schema.AccessorType.VEC4,
+                    Schema.AccessorComponentType.FLOAT,
+                    sizeof(float),
+                    values.Count(),
+                    null,
+                    null,
+                    sizeof(float) * 4 * values.Count(),
+                    binaryWriter => values.ForEach(value => binaryWriter.Write(value)));
+            }
         }
 
         private int ExportData(IEnumerable<ByteVector4> values)
