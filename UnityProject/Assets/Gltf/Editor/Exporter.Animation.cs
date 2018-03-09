@@ -45,7 +45,7 @@ namespace Gltf.Serialization
             for (int keyIndex = 0; keyIndex < firstCurve.keys.Length; keyIndex++)
             {
                 // All curves must have the same time values.
-                if (!remainingCurves.All(curve => curve.keys[keyIndex].time == firstCurve.keys[keyIndex].time))
+                if (!remainingCurves.All(curve => Mathf.Approximately(curve.keys[keyIndex].time, firstCurve.keys[keyIndex].time)))
                 {
                     return false;
                 }

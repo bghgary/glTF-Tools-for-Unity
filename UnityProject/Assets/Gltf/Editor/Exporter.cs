@@ -92,7 +92,7 @@ namespace Gltf.Serialization
         private readonly Dictionary<OcclusionMetallicInfo, Texture2D> occlusionMetallicInfoToTextureCache = new Dictionary<OcclusionMetallicInfo, Texture2D>();
 
         private BinaryWriter dataWriter;
-        private readonly Dictionary<UnityEngine.Object, int> objectToIndexCache = new Dictionary<UnityEngine.Object, int>();
+        private readonly Dictionary<object, int> objectToIndexCache = new Dictionary<object, int>();
         private readonly List<Extension> extensions = new List<Extension>();
 
         private readonly List<Schema.Accessor> accessors = new List<Schema.Accessor>();
@@ -151,9 +151,7 @@ namespace Gltf.Serialization
             };
 
             this.ExportAnimations(inputObjects);
-
-            // Disable for now
-            //this.ExportSkins(inputObjects);
+            this.ExportSkins(inputObjects);
 
             var gltf = new Schema.Gltf
             {
