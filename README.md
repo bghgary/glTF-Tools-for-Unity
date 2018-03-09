@@ -1,5 +1,7 @@
 # glTF Tools for Unity
 
+*This project is no longer being maintained. Please use the official [Khronos UnityGLTF repo](https://github.com/KhronosGroup/UnityGLTF). Use this repo only as reference or for testing purposes.*
+
 # Setup
 
 Import <a href="./glTF-Tools-for-Unity.unitypackage">glTF-Tools-for-Unity.unitypackage</a> into your Unity project.
