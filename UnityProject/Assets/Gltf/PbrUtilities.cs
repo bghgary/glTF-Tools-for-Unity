@@ -73,7 +73,10 @@ public static class PbrUtilities
 
     private static float SolveMetallic(float dielectricSpecular, float diffuse, float specular, float oneMinusSpecularStrength)
     {
-        specular = Mathf.Max(specular, dielectricSpecular);
+        if (specular < dielectricSpecular)
+        {
+            return 0.0f;
+        }
 
         var a = dielectricSpecular;
         var b = diffuse * oneMinusSpecularStrength / (1 - dielectricSpecular) + specular - 2.0f * dielectricSpecular;

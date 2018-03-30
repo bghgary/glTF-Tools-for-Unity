@@ -109,14 +109,20 @@ namespace Gltf.Serialization
                 values => this.ExportData(values));
         }
 
+        private static Quaternion CreateNormalizedQuaternion(float x, float y, float z, float w)
+        {
+            var factor = 1.0f / Mathf.Sqrt(x * x + y * y + z * z + w * w);
+            return new Quaternion(x * factor, y * factor, z * factor, w * factor);
+        }
+
         private Schema.AnimationSampler ExportAnimationSamplerRotation(AnimationCurve curveX, AnimationCurve curveY, AnimationCurve curveZ, AnimationCurve curveW)
         {
             return this.ExportAnimationSampler(
                 new[] { curveX, curveY, curveZ, curveW },
                 keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].inTangent, curveY.keys[keyIndex].inTangent, curveZ.keys[keyIndex].inTangent, curveW.keys[keyIndex].inTangent)),
-                keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value)),
+                keyIndex => GetRightHandedQuaternion(CreateNormalizedQuaternion(curveX.keys[keyIndex].value, curveY.keys[keyIndex].value, curveZ.keys[keyIndex].value, curveW.keys[keyIndex].value)),
                 keyIndex => GetRightHandedQuaternion(new Quaternion(curveX.keys[keyIndex].outTangent, curveY.keys[keyIndex].outTangent, curveZ.keys[keyIndex].outTangent, curveW.keys[keyIndex].outTangent)),
-                time => GetRightHandedQuaternion(new Quaternion(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time))),
+                time => GetRightHandedQuaternion(CreateNormalizedQuaternion(curveX.Evaluate(time), curveY.Evaluate(time), curveZ.Evaluate(time), curveW.Evaluate(time))),
                 values => this.ExportData(values));
         }
 

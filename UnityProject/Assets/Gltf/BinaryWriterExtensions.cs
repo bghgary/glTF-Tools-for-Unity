@@ -32,14 +32,6 @@ public static class BinaryWriterExtensions
         binaryWriter.Write(value.w);
     }
 
-    public static void Write(this BinaryWriter binaryWriter, Color value)
-    {
-        binaryWriter.Write(value.r);
-        binaryWriter.Write(value.g);
-        binaryWriter.Write(value.b);
-        binaryWriter.Write(value.a);
-    }
-
     public static void Write(this BinaryWriter binaryWriter, UShortVector4 value)
     {
         binaryWriter.Write(value.x);

@@ -9,7 +9,7 @@ namespace Gltf.Serialization
         private static readonly Matrix4x4 InvertZMatrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(1, 1, -1));
         private static readonly Matrix4x4 InvertZMatrixInverse = InvertZMatrix.inverse;
 
-        private class Skin
+        private struct Skin
         {
             public Matrix4x4[] BindPoses;
             public Transform RootBone;
@@ -65,9 +65,9 @@ namespace Gltf.Serialization
 
                 this.skins.Add(new Schema.Skin
                 {
-                    InverseBindMatrices = this.ExportData(skinnedMeshRenderer.sharedMesh.bindposes.Select(bindpose => GetRightHandedMatrix(bindpose))),
-                    Skeleton = this.objectToIndexCache[skinnedMeshRenderer.rootBone.gameObject],
-                    Joints = skinnedMeshRenderer.bones.Select(bone => this.objectToIndexCache[bone.gameObject]).ToArray(),
+                    InverseBindMatrices = this.ExportData(skin.BindPoses.Select(bindpose => GetRightHandedMatrix(bindpose))),
+                    Skeleton = this.objectToIndexCache[skin.RootBone.gameObject],
+                    Joints = skin.Bones.Select(bone => this.objectToIndexCache[bone.gameObject]).ToArray(),
                 });
             }
 

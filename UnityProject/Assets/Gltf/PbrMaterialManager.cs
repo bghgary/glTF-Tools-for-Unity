@@ -163,7 +163,7 @@ public class PbrMaterialManager
         {
             var specularGlossiness = new SpecularGlossiness
             {
-                Diffuse = diffusePixels[i].linear,
+                Diffuse = diffusePixels[i].linear * info._Color,
                 Specular = specGlossPixels[i].linear,
                 Glossiness = specGlossPixels[i].a
             };
